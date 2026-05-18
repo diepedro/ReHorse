@@ -1,16 +1,53 @@
 {
+  "id": "/?source=pwa",
   "name": "ReHorse",
   "short_name": "ReHorse",
   "description": "Organizador de ensaios e repertório para bandas",
-  "start_url": "/",
+  "start_url": "/?source=pwa",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
   "background_color": "#030712",
   "theme_color": "#030712",
   "orientation": "portrait-primary",
-  "icons": [
-    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
-  ],
   "categories": ["music", "productivity"],
-  "lang": "pt-BR"
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Minhas bandas",
+      "short_name": "Bandas",
+      "description": "Abrir o painel com suas bandas",
+      "url": "/dashboard?source=pwa-shortcut",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Entrar por convite",
+      "short_name": "Convite",
+      "description": "Abrir a tela inicial para entrar por código",
+      "url": "/?source=pwa-shortcut",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Perfil e notificações",
+      "short_name": "Perfil",
+      "description": "Gerenciar conta e notificações push",
+      "url": "/perfil?source=pwa-shortcut",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
 }

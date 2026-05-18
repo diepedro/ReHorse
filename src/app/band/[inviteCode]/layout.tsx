@@ -117,7 +117,6 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
     { href: `/band/${inviteCode}/rehearsals`, label: 'Ensaios' },
     { href: `/band/${inviteCode}/songs`, label: 'Músicas' },
     { href: `/band/${inviteCode}/suggestions`, label: 'Sugestões' },
-    { href: `/band/${inviteCode}/history`, label: 'Histórico' },
     { href: `/band/${inviteCode}/insights`, label: 'Análise' },
     { href: `/band/${inviteCode}/ensaio`, label: '🎸 Ensaiar' },
     { href: `/band/${inviteCode}/settings`, label: 'Ajustes' },
@@ -127,7 +126,6 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
     { href: `/band/${inviteCode}/songs`, label: 'Músicas' },
     { href: `/band/${inviteCode}/suggestions`, label: 'Sug.' },
     { href: `/band/${inviteCode}/ensaio`, label: 'Ensaiar' },
-    { href: `/band/${inviteCode}/history`, label: 'Hist.' },
     { href: `/band/${inviteCode}/settings`, label: 'Ajustes' },
   ]
   const joinLabel = isAdmin ? 'Escolher slot' : 'Entrar na banda'
@@ -280,7 +278,7 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
       </main>
 
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-gray-200 bg-white/95 backdrop-blur dark:border-gray-800 dark:bg-gray-950/95" aria-label="Seções principais">
-        <div className="grid grid-cols-6">
+        <div className="grid grid-cols-5">
           {mobileTabs.map((tab) => {
             const isActive = pathname === tab.href
             return (

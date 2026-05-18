@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useBand } from '@/contexts/BandContext'
+import BandHistoryPanel from '@/components/BandHistoryPanel'
 
 interface InsightsData {
   personal: string[]
@@ -135,6 +136,8 @@ export default function InsightsPage() {
           Nenhum dado disponível ainda — comece preenchendo as outras abas!
         </div>
       )}
+
+      <BandHistoryPanel inviteCode={inviteCode} title="Historico recente da banda" />
     </div>
   )
 }

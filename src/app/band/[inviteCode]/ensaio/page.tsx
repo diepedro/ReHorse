@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import type { Song, BandMember } from '@/lib/types'
 import { useBand } from '@/contexts/BandContext'
+import BandHistoryPanel from '@/components/BandHistoryPanel'
 
 interface RehearsalSession {
   id: number
@@ -296,6 +297,8 @@ export default function EnsaioPage() {
             Iniciar ensaio
           </button>
         </div>
+
+        <BandHistoryPanel inviteCode={inviteCode} type="rehearsal" title="Historico de ensaios" />
       </div>
     )
   }
@@ -478,6 +481,8 @@ export default function EnsaioPage() {
           </div>
         )
       })()}
+
+      <BandHistoryPanel inviteCode={inviteCode} type="rehearsal" title="Historico de ensaios" />
     </div>
   )
 }

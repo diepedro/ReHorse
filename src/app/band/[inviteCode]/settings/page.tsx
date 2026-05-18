@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import QrCode from '@/components/QrCode'
+import BandHistoryPanel from '@/components/BandHistoryPanel'
 import { useToast } from '@/components/ToastProvider'
 import { useBand } from '@/contexts/BandContext'
 import { firstAvailableMemberColor, isColorBlocked, MEMBER_COLORS } from '@/lib/member-colors'
@@ -25,6 +26,7 @@ export default function SettingsPage() {
   const [newMemberColor, setNewMemberColor] = useState<string>(MEMBER_COLORS[0])
   const [addingMember, setAddingMember] = useState(false)
   const [savingColor, setSavingColor] = useState<string | null>(null)
+  const [editingColorMemberId, setEditingColorMemberId] = useState<string | null>(null)
 
   const sortedMembers = useMemo(
     () => [...band.members].sort((a, b) => a.sortOrder - b.sortOrder),
@@ -116,6 +118,7 @@ export default function SettingsPage() {
       return
     }
     toast('Cor atualizada.', 'success')
+    setEditingColorMemberId(null)
     refetch()
   }
 
@@ -133,7 +136,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between gap-3">
+      <div>
         <div>
           <Link
             href={`/band/${inviteCode}/rehearsals`}
@@ -144,12 +147,6 @@ export default function SettingsPage() {
           <h2 className="mt-1 text-xl font-semibold tracking-tight text-gray-950 dark:text-gray-100">Ajustes</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400">{band.name}</p>
         </div>
-        <Link
-          href={`/band/${inviteCode}/history`}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-gray-900"
-        >
-          Historico
-        </Link>
       </div>
 
       <section className="bg-white border border-gray-200 rounded-lg p-5 dark:bg-gray-900 dark:border-gray-800">
@@ -168,52 +165,62 @@ export default function SettingsPage() {
           </button>
         </div>
         <div className="mt-4 flex justify-center rounded-lg bg-gray-50 p-4 dark:bg-gray-950">
-          <QrCode value={inviteUrl} size={160} />
+          <QrCode value={inviteUrl} size={360} fill />
         </div>
       </section>
-
-      {currentMember && (
-        <section className="bg-white border border-gray-200 rounded-lg p-5 dark:bg-gray-900 dark:border-gray-800">
-          <h3 className="text-sm font-semibold mb-3 dark:text-gray-100">Sua cor</h3>
-          <ColorGrid
-            members={sortedMembers}
-            targetMemberId={currentMember.id}
-            selectedColor={currentMember.color}
-            savingColor={savingColor}
-            onSelect={changeOwnColor}
-          />
-        </section>
-      )}
 
       <section className="bg-white border border-gray-200 rounded-lg p-5 dark:bg-gray-900 dark:border-gray-800">
         <h3 className="text-sm font-semibold mb-4 dark:text-gray-100">Membros</h3>
         <div className="space-y-2">
           {sortedMembers.map((m) => (
-            <div key={m.id} className="flex min-h-10 items-center justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-950">
-              <div className="flex min-w-0 items-center gap-2">
-                <span
-                  className="h-4 w-4 rounded-full shrink-0 ring-2 ring-white dark:ring-gray-900"
-                  style={{ backgroundColor: m.color }}
-                />
-                <span className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">{m.displayName}</span>
-                {currentMember?.id === m.id && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium dark:bg-blue-950 dark:text-blue-300">
-                    voce
-                  </span>
-                )}
-                {m.claimed && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 font-medium dark:bg-emerald-950 dark:text-emerald-300">
-                    entrou
-                  </span>
+            <div key={m.id} className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-950">
+              <div className="flex min-h-10 items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  {currentMember?.id === m.id ? (
+                    <button
+                      type="button"
+                      onClick={() => setEditingColorMemberId((id) => id === m.id ? null : m.id)}
+                      className="h-5 w-5 rounded-full shrink-0 ring-2 ring-white transition-transform hover:scale-110 dark:ring-gray-900"
+                      style={{ backgroundColor: m.color }}
+                      title="Alterar sua cor"
+                    />
+                  ) : (
+                    <span
+                      className="h-4 w-4 rounded-full shrink-0 ring-2 ring-white dark:ring-gray-900"
+                      style={{ backgroundColor: m.color }}
+                    />
+                  )}
+                  <span className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">{m.displayName}</span>
+                  {currentMember?.id === m.id && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium dark:bg-blue-950 dark:text-blue-300">
+                      voce
+                    </span>
+                  )}
+                  {m.claimed && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 font-medium dark:bg-emerald-950 dark:text-emerald-300">
+                      entrou
+                    </span>
+                  )}
+                </div>
+                {isAdmin && (
+                  <button
+                    onClick={() => removeMember(m.id)}
+                    className="text-xs text-gray-400 hover:text-red-500 dark:text-gray-600 dark:hover:text-red-400 transition-colors"
+                  >
+                    Remover
+                  </button>
                 )}
               </div>
-              {isAdmin && (
-                <button
-                  onClick={() => removeMember(m.id)}
-                  className="text-xs text-gray-400 hover:text-red-500 dark:text-gray-600 dark:hover:text-red-400 transition-colors"
-                >
-                  Remover
-                </button>
+              {currentMember?.id === m.id && editingColorMemberId === m.id && (
+                <div className="mt-3 border-t border-gray-200 pt-3 dark:border-gray-800">
+                  <ColorGrid
+                    members={sortedMembers}
+                    targetMemberId={currentMember.id}
+                    selectedColor={currentMember.color}
+                    savingColor={savingColor}
+                    onSelect={changeOwnColor}
+                  />
+                </div>
               )}
             </div>
           ))}
@@ -279,6 +286,8 @@ export default function SettingsPage() {
           )}
         </section>
       )}
+
+      <BandHistoryPanel inviteCode={inviteCode} type="member" title="Historico de ajustes e membros" />
     </div>
   )
 }

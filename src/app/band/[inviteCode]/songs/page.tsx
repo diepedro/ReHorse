@@ -2,6 +2,7 @@
 
 import { useParams } from 'next/navigation'
 import SongsTable from '@/components/SongsTable'
+import BandHistoryPanel from '@/components/BandHistoryPanel'
 import { useBand } from '@/contexts/BandContext'
 
 export default function SongsPage() {
@@ -18,6 +19,7 @@ export default function SongsPage() {
         isAdmin={isAdmin}
         bandName={band.name}
       />
+      <BandHistoryPanel inviteCode={inviteCode} type="song" title="Historico do repertorio" />
     </div>
   )
 }

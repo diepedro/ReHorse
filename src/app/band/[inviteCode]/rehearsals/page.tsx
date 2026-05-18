@@ -1,6 +1,7 @@
 'use client'
 
 import Calendar from '@/components/Calendar'
+import BandHistoryPanel from '@/components/BandHistoryPanel'
 import { useBand } from '@/contexts/BandContext'
 import { useParams } from 'next/navigation'
 
@@ -21,6 +22,7 @@ export default function RehearsalsPage() {
         isAdmin={isAdmin}
         onScheduleChange={refetch}
       />
+      <BandHistoryPanel inviteCode={inviteCode} type="rehearsal" title="Historico de ensaios" />
     </div>
   )
 }

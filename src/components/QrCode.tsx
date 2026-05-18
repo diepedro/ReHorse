@@ -6,9 +6,10 @@ import QRCode from 'qrcode'
 interface Props {
   value: string
   size?: number
+  fill?: boolean
 }
 
-export default function QrCode({ value, size = 200 }: Props) {
+export default function QrCode({ value, size = 200, fill = false }: Props) {
   const [url, setUrl] = useState('')
 
   useEffect(() => {
@@ -35,7 +36,7 @@ export default function QrCode({ value, size = 200 }: Props) {
   return (
     <div
       className="flex items-center justify-center rounded-lg border border-gray-200 bg-white text-center text-[10px] text-gray-400"
-      style={{ width: size, height: size }}
+      style={fill ? { width: '80%', maxWidth: size, aspectRatio: '1 / 1' } : { width: size, height: size }}
     >
       {url ? (
         <img
@@ -43,7 +44,7 @@ export default function QrCode({ value, size = 200 }: Props) {
           alt={`QR Code: ${value}`}
           width={size}
           height={size}
-          className="rounded-lg"
+          className="h-full w-full rounded-lg"
         />
       ) : (
         <span className="px-3">QR indisponível</span>

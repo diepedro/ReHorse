@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useToast } from '@/components/ToastProvider'
 import VoteBar from '@/components/VoteBar'
+import BandHistoryPanel from '@/components/BandHistoryPanel'
 import { useBand } from '@/contexts/BandContext'
 import type { Suggestion } from '@/lib/types'
 
@@ -250,6 +251,8 @@ export default function SuggestionsPage() {
       <p className="text-xs text-gray-400 dark:text-gray-500 mt-4">
         A sugestão vai automaticamente para o repertório quando atingir 70% de aprovação. Admins também podem aprovar manualmente.
       </p>
+
+      <BandHistoryPanel inviteCode={inviteCode} type="suggestion" title="Historico de sugestoes" />
     </div>
   )
 }

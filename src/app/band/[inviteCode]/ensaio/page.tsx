@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import type { Song, BandMember } from '@/lib/types'
+import { useBand } from '@/contexts/BandContext'
 
 interface RehearsalSession {
   id: number
@@ -38,6 +39,7 @@ function fmtSecs(s: number) {
 export default function EnsaioPage() {
   const params = useParams()
   const inviteCode = params.inviteCode as string
+  const { currentMember } = useBand()
 
   const [session, setSession] = useState<RehearsalSession | null | false>(false) // false = loading
   const [songs, setSongs] = useState<Song[]>([])
@@ -102,14 +104,17 @@ export default function EnsaioPage() {
 
   async function startSession() {
     setSession(false)
-    const res = await fetch(`/api/bands/${inviteCode}/rehearsal`, { method: 'POST' })
+    const actorQuery = currentMember ? `?bandMemberId=${encodeURIComponent(currentMember.id)}` : ''
+    const res = await fetch(`/api/bands/${inviteCode}/rehearsal${actorQuery}`, { method: 'POST' })
     if (res.ok) fetchSession()
   }
 
   async function endSession() {
     setEnding(true)
-    await fetch(`/api/bands/${inviteCode}/rehearsal`, { method: 'DELETE' })
-    fetchSession()
+    const actorQuery = currentMember ? `?bandMemberId=${encodeURIComponent(currentMember.id)}` : ''
+    const res = await fetch(`/api/bands/${inviteCode}/rehearsal${actorQuery}`, { method: 'DELETE' })
+    if (!res.ok) alert('Nao foi possivel encerrar o ensaio.')
+    await fetchSession()
     setEnding(false)
   }
 

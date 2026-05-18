@@ -154,6 +154,21 @@ export const rehearsalSessions = pgTable('rehearsal_sessions', {
   playedSongs: text('played_songs').notNull().default('[]'), // JSON: number[]
 })
 
+// Band History Events
+
+export const bandHistoryEvents = pgTable('band_history_events', {
+  id: serial('id').primaryKey(),
+  bandId: text('band_id').notNull().references(() => bands.id, { onDelete: 'cascade' }),
+  actorMemberId: text('actor_member_id').references(() => bandMembers.id, { onDelete: 'set null' }),
+  actorName: text('actor_name'),
+  type: text('type').notNull(),
+  subjectType: text('subject_type').notNull(),
+  subjectId: text('subject_id'),
+  subjectName: text('subject_name'),
+  details: text('details').notNull().default('{}'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
 // ─── Push Subscriptions ───────────────────────────────────────────────────────
 
 export const pushSubscriptions = pgTable('push_subscriptions', {

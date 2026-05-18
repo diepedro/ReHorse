@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { bands, bandMembers, songs, songStatus, songRehearsed, songReferences } from '@/lib/schema'
+import { bands, songs, songStatus, songRehearsed, songReferences } from '@/lib/schema'
 import { eq, and, inArray, ilike } from 'drizzle-orm'
 import type { SongStatus } from '@/lib/types'
+import { recordHistoryEvent } from '@/lib/history'
 
 export const dynamic = 'force-dynamic'
 
@@ -83,12 +84,15 @@ export async function POST(
   { params }: { params: { inviteCode: string } }
 ) {
   const body = await request.json()
-  const { name, reference } = body
+  const { name, reference, bandMemberId } = body
 
   if (!name?.trim()) return NextResponse.json({ error: 'name required' }, { status: 400 })
 
   const band = await getBandByCode(params.inviteCode)
   if (!band) return NextResponse.json({ error: 'Band not found' }, { status: 404 })
+  const actor = bandMemberId
+    ? band.members.find((member) => member.id === bandMemberId) ?? null
+    : null
 
   const existing = await db.select().from(songs).where(eq(songs.bandId, band.id))
   const normalizedName = name.trim().toLowerCase()
@@ -114,6 +118,20 @@ export async function POST(
     })
   }
 
+  await recordHistoryEvent({
+    bandId: band.id,
+    actorMemberId: actor?.id,
+    actorName: actor?.displayName,
+    type: 'song_added',
+    subjectType: 'song',
+    subjectId: song.id,
+    subjectName: song.name,
+    details: {
+      source: reference?.type ? 'search' : 'manual',
+      artistName: reference?.artistName ?? null,
+    },
+  })
+
   return NextResponse.json({ id: song.id, name: song.name }, { status: 201 })
 }
 
@@ -122,13 +140,31 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { inviteCode: string } }
 ) {
-  const id = Number(new URL(req.url).searchParams.get('id'))
+  const url = new URL(req.url)
+  const id = Number(url.searchParams.get('id'))
+  const bandMemberId = url.searchParams.get('bandMemberId')
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 
   const band = await getBandByCode(params.inviteCode)
   if (!band) return NextResponse.json({ error: 'Band not found' }, { status: 404 })
+  const song = await db.query.songs.findFirst({
+    where: and(eq(songs.id, id), eq(songs.bandId, band.id)),
+  })
+  if (!song) return NextResponse.json({ error: 'Song not found' }, { status: 404 })
+  const actor = bandMemberId ? band.members.find((member) => member.id === bandMemberId) ?? null : null
 
   await db.delete(songs).where(and(eq(songs.id, id), eq(songs.bandId, band.id)))
+
+  await recordHistoryEvent({
+    bandId: band.id,
+    actorMemberId: actor?.id,
+    actorName: actor?.displayName,
+    type: 'song_removed',
+    subjectType: 'song',
+    subjectId: song.id,
+    subjectName: song.name,
+    details: { removedAt: new Date().toISOString() },
+  })
 
   return NextResponse.json({ ok: true })
 }

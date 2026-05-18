@@ -11,6 +11,10 @@ function isIos() {
   return /iphone|ipad|ipod/i.test(navigator.userAgent)
 }
 
+function isMobile() {
+  return /android|iphone|ipad|ipod/i.test(navigator.userAgent) || window.innerWidth < 768
+}
+
 function isInStandaloneMode() {
   return (
     window.matchMedia('(display-mode: standalone)').matches ||
@@ -58,7 +62,7 @@ export default function PwaInstaller() {
     localStorage.setItem('pwa_visits', String(v))
     setVisits(v)
 
-    if (isIos() && v >= 2) {
+    if (isIos() && isMobile() && v >= 1) {
       setShowIos(true)
       return
     }
@@ -124,7 +128,7 @@ export default function PwaInstaller() {
     )
   }
 
-  if (!prompt || visits < 2) return null
+  if (!prompt || visits < (isMobile() ? 1 : 2)) return null
 
   return (
     <div className="fixed bottom-16 sm:bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-sm z-40 bg-gray-900 border border-gray-700 rounded-2xl p-4 shadow-xl flex items-center gap-3">

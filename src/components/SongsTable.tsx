@@ -75,7 +75,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
     const res = await fetch(`/api/bands/${inviteCode}/songs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, bandMemberId: currentMember?.id }),
     })
     if (!res.ok) { toast('Erro ao adicionar música.', 'error'); return }
     toast('Música adicionada!', 'success')
@@ -88,6 +88,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: track.trackName,
+        bandMemberId: currentMember?.id,
         reference: {
           type: track.source,
           refId: track.id,
@@ -110,7 +111,8 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
   }
 
   async function deleteSong(id: number) {
-    const res = await fetch(`/api/bands/${inviteCode}/songs?id=${id}`, { method: 'DELETE' })
+    const actorQuery = currentMember ? `&bandMemberId=${encodeURIComponent(currentMember.id)}` : ''
+    const res = await fetch(`/api/bands/${inviteCode}/songs?id=${id}${actorQuery}`, { method: 'DELETE' })
     if (!res.ok) { toast('Erro ao remover música.', 'error'); return }
     setConfirmDelete(null)
     fetchSongs()

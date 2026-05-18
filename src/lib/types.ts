@@ -11,6 +11,19 @@ export interface BandMember {
   claimedBy: string | null
 }
 
+export interface BandHistoryEvent {
+  id: number
+  bandId: string
+  actorMemberId: string | null
+  actorName: string | null
+  type: string
+  subjectType: string
+  subjectId: string | null
+  subjectName: string | null
+  details: Record<string, unknown>
+  createdAt: string
+}
+
 export interface Band {
   id: string
   name: string

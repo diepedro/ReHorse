@@ -84,7 +84,7 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
     const res = await fetch(`/api/bands/${inviteCode}/members/${currentMember.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ displayName: trimmed }),
+      body: JSON.stringify({ displayName: trimmed, actorMemberId: currentMember.id }),
     })
     if (res.ok) {
       localStorage.setItem(`member_name_${inviteCode}`, trimmed)
@@ -117,9 +117,18 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
     { href: `/band/${inviteCode}/rehearsals`, label: 'Ensaios' },
     { href: `/band/${inviteCode}/songs`, label: 'Músicas' },
     { href: `/band/${inviteCode}/suggestions`, label: 'Sugestões' },
+    { href: `/band/${inviteCode}/history`, label: 'Histórico' },
     { href: `/band/${inviteCode}/insights`, label: 'Análise' },
     { href: `/band/${inviteCode}/ensaio`, label: '🎸 Ensaiar' },
-    ...(isAdmin ? [{ href: `/band/${inviteCode}/settings`, label: 'Ajustes' }] : []),
+    { href: `/band/${inviteCode}/settings`, label: 'Ajustes' },
+  ]
+  const mobileTabs = [
+    { href: `/band/${inviteCode}/rehearsals`, label: 'Ensaios' },
+    { href: `/band/${inviteCode}/songs`, label: 'Músicas' },
+    { href: `/band/${inviteCode}/suggestions`, label: 'Sug.' },
+    { href: `/band/${inviteCode}/ensaio`, label: 'Ensaiar' },
+    { href: `/band/${inviteCode}/history`, label: 'Hist.' },
+    { href: `/band/${inviteCode}/settings`, label: 'Ajustes' },
   ]
   const joinLabel = isAdmin ? 'Escolher slot' : 'Entrar na banda'
 
@@ -206,7 +215,7 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
 
-          <nav className="flex flex-wrap sm:flex-nowrap gap-1 -mb-px overflow-x-auto sm:scrollbar-none" aria-label="Seções da banda">
+          <nav className="hidden sm:flex sm:flex-nowrap gap-1 -mb-px overflow-x-auto sm:scrollbar-none" aria-label="Seções da banda">
             {tabs.map((tab) => {
               const isActive = pathname === tab.href
               return (
@@ -262,13 +271,36 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
         </div>
       )}
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 dark:bg-gray-950">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-5 sm:py-6 pb-24 sm:pb-6 dark:bg-gray-950">
         <BandContext.Provider value={{ band, currentMember, isAdmin: !!isAdmin, refetch: fetchBand }}>
           <div className="page-enter">
             {children}
           </div>
         </BandContext.Provider>
       </main>
+
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-gray-200 bg-white/95 backdrop-blur dark:border-gray-800 dark:bg-gray-950/95" aria-label="Seções principais">
+        <div className="grid grid-cols-6">
+          {mobileTabs.map((tab) => {
+            const isActive = pathname === tab.href
+            return (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                className={`flex min-h-14 items-center justify-center px-1 text-[11px] font-semibold transition-colors ${
+                  isActive
+                    ? 'text-gray-950 dark:text-white'
+                    : 'text-gray-500 hover:text-gray-800 dark:text-gray-500 dark:hover:text-gray-200'
+                }`}
+              >
+                <span className={`rounded-full px-2.5 py-1 ${isActive ? 'bg-gray-100 dark:bg-gray-800' : ''}`}>
+                  {tab.label}
+                </span>
+              </Link>
+            )
+          })}
+        </div>
+      </nav>
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { bands, suggestions, suggestionVotes, songs } from '@/lib/schema'
 import { eq, and, inArray, ilike } from 'drizzle-orm'
 import { pushToBand } from '@/lib/push'
+import { recordHistoryEvent } from '@/lib/history'
 
 export const dynamic = 'force-dynamic'
 
@@ -96,6 +97,16 @@ export async function POST(
 
   // Notify other band members
   const suggester = band.members.find((m) => m.id === bandMemberId)
+  await recordHistoryEvent({
+    bandId: band.id,
+    actorMemberId: suggester?.id,
+    actorName: suggester?.displayName,
+    type: 'suggestion_created',
+    subjectType: 'suggestion',
+    subjectId: suggestion.id,
+    subjectName: suggestion.name,
+    details: { autoVote: 'yes' },
+  })
   pushToBand(
     band.id,
     {
@@ -134,12 +145,41 @@ export async function PATCH(
     where: and(eq(suggestions.id, id), eq(suggestions.bandId, band.id)),
   })
   if (!suggestion) return NextResponse.json({ error: 'Suggestion not found' }, { status: 404 })
+  const actor = band.members.find((member) => member.claimedBy === session.user.id) ?? null
+  const voters = await getSuggestionVoteDetails(id, band.members)
 
   if (action === 'promote') {
     const existing = await db.select().from(songs).where(eq(songs.bandId, band.id))
     const duplicate = existing.some((song) => song.name.trim().toLowerCase() === suggestion.name.trim().toLowerCase())
-    if (!duplicate) await db.insert(songs).values({ bandId: band.id, name: suggestion.name })
+    let songId: number | null = null
+    if (!duplicate) {
+      const [song] = await db.insert(songs).values({ bandId: band.id, name: suggestion.name }).returning()
+      songId = song.id
+    }
     await db.delete(suggestions).where(eq(suggestions.id, id))
+
+    await recordHistoryEvent({
+      bandId: band.id,
+      actorMemberId: actor?.id,
+      actorName: actor?.displayName ?? session.user.name ?? 'Administrador',
+      type: 'suggestion_approved',
+      subjectType: 'suggestion',
+      subjectId: suggestion.id,
+      subjectName: suggestion.name,
+      details: { duplicate, votes: voters },
+    })
+    if (!duplicate) {
+      await recordHistoryEvent({
+        bandId: band.id,
+        actorMemberId: actor?.id,
+        actorName: actor?.displayName ?? session.user.name ?? 'Administrador',
+        type: 'song_added_from_suggestion',
+        subjectType: 'song',
+        subjectId: songId,
+        subjectName: suggestion.name,
+        details: { suggestionId: suggestion.id, votes: voters },
+      })
+    }
 
     pushToBand(band.id, {
       title: 'Música aprovada',
@@ -151,6 +191,16 @@ export async function PATCH(
   }
 
   await db.delete(suggestions).where(eq(suggestions.id, id))
+  await recordHistoryEvent({
+    bandId: band.id,
+    actorMemberId: actor?.id,
+    actorName: actor?.displayName ?? session.user.name ?? 'Administrador',
+    type: 'suggestion_rejected',
+    subjectType: 'suggestion',
+    subjectId: suggestion.id,
+    subjectName: suggestion.name,
+    details: { votes: voters },
+  })
   pushToBand(band.id, {
     title: 'Sugestão encerrada',
     body: `"${suggestion.name}" foi removida das sugestões.`,
@@ -182,7 +232,34 @@ export async function DELETE(
   if (bandMemberId && suggestion.suggestedBy !== bandMemberId)
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+  const actor = band.members.find((member) => member.id === bandMemberId) ?? null
+  const voters = await getSuggestionVoteDetails(id, band.members)
   await db.delete(suggestions).where(eq(suggestions.id, id))
+  await recordHistoryEvent({
+    bandId: band.id,
+    actorMemberId: actor?.id,
+    actorName: actor?.displayName,
+    type: 'suggestion_removed',
+    subjectType: 'suggestion',
+    subjectId: suggestion.id,
+    subjectName: suggestion.name,
+    details: { votes: voters },
+  })
 
   return NextResponse.json({ ok: true })
+}
+
+async function getSuggestionVoteDetails(
+  suggestionId: number,
+  members: Array<{ id: string; displayName: string }>,
+) {
+  const votes = await db.select().from(suggestionVotes).where(eq(suggestionVotes.suggestionId, suggestionId))
+  return votes.map((vote) => {
+    const member = members.find((m) => m.id === vote.bandMemberId)
+    return {
+      memberId: vote.bandMemberId,
+      memberName: member?.displayName ?? 'Membro removido',
+      vote: vote.vote,
+    }
+  })
 }

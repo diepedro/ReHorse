@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { bands, songs, rehearsalSessions } from '@/lib/schema'
-import { eq, ilike, isNull, desc } from 'drizzle-orm'
+import { bands, bandMembers, songs, rehearsalSessions } from '@/lib/schema'
+import { and, eq, ilike, isNull, desc } from 'drizzle-orm'
+import { recordHistoryEvent } from '@/lib/history'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +19,7 @@ export async function GET(
   if (!band) return NextResponse.json({ error: 'Band not found' }, { status: 404 })
 
   const active = await db.query.rehearsalSessions.findFirst({
-    where: eq(rehearsalSessions.bandId, band.id) && isNull(rehearsalSessions.endedAt),
+    where: and(eq(rehearsalSessions.bandId, band.id), isNull(rehearsalSessions.endedAt)),
     orderBy: desc(rehearsalSessions.createdAt),
   })
 
@@ -36,11 +37,12 @@ export async function GET(
 
 // POST — start a new session (ends any active one first)
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { inviteCode: string } }
 ) {
   const band = await getBand(params.inviteCode)
   if (!band) return NextResponse.json({ error: 'Band not found' }, { status: 404 })
+  const actor = await getActor(req, band.id)
 
   // End any active session
   const allSessions = await db.select().from(rehearsalSessions).where(eq(rehearsalSessions.bandId, band.id))
@@ -59,6 +61,17 @@ export async function POST(
     songOrder: JSON.stringify(order),
     playedSongs: '[]',
   }).returning()
+
+  await recordHistoryEvent({
+    bandId: band.id,
+    actorMemberId: actor?.id,
+    actorName: actor?.displayName,
+    type: 'rehearsal_started',
+    subjectType: 'rehearsal',
+    subjectId: session.id,
+    subjectName: 'Ensaio',
+    details: { songCount: order.length },
+  })
 
   return NextResponse.json({ ...session, songOrder: order, playedSongs: [] })
 }
@@ -90,17 +103,61 @@ export async function PATCH(
 
 // DELETE — end the active session
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { inviteCode: string } }
 ) {
   const band = await getBand(params.inviteCode)
   if (!band) return NextResponse.json({ error: 'Band not found' }, { status: 404 })
+  const actor = await getActor(req, band.id)
 
-  const allSessions = await db.select().from(rehearsalSessions).where(eq(rehearsalSessions.bandId, band.id))
-  const active = allSessions.find((s) => !s.endedAt)
+  const active = await db.query.rehearsalSessions.findFirst({
+    where: and(eq(rehearsalSessions.bandId, band.id), isNull(rehearsalSessions.endedAt)),
+    orderBy: desc(rehearsalSessions.createdAt),
+  })
   if (!active) return NextResponse.json({ error: 'No active session' }, { status: 404 })
 
-  await db.update(rehearsalSessions).set({ endedAt: new Date() }).where(eq(rehearsalSessions.id, active.id))
+  const endedAt = new Date()
+  await db.update(rehearsalSessions).set({ endedAt }).where(eq(rehearsalSessions.id, active.id))
+
+  const playedSongs = safeArray(active.playedSongs)
+  const songRows = playedSongs.length > 0
+    ? await db.select({ id: songs.id, name: songs.name }).from(songs)
+    : []
+  const playedNames = playedSongs
+    .map((id) => songRows.find((song) => song.id === id)?.name)
+    .filter(Boolean)
+
+  await recordHistoryEvent({
+    bandId: band.id,
+    actorMemberId: actor?.id,
+    actorName: actor?.displayName,
+    type: 'rehearsal_ended',
+    subjectType: 'rehearsal',
+    subjectId: active.id,
+    subjectName: 'Ensaio',
+    details: {
+      durationMs: endedAt.getTime() - active.createdAt.getTime(),
+      playedSongs: playedNames,
+    },
+  })
 
   return NextResponse.json({ ok: true })
+}
+
+async function getActor(req: NextRequest, bandId: string) {
+  const url = new URL(req.url)
+  const memberId = url.searchParams.get('bandMemberId')
+  if (!memberId) return null
+  return db.query.bandMembers.findFirst({
+    where: and(eq(bandMembers.id, memberId), eq(bandMembers.bandId, bandId)),
+  })
+}
+
+function safeArray(value: string) {
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
 }

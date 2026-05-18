@@ -19,7 +19,7 @@ export default function LgpdBanner() {
   if (!visible) return null
 
   return (
-    <div className="fixed bottom-0 inset-x-0 z-50 bg-gray-900 border-t border-gray-700 px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+    <div className="fixed bottom-14 sm:bottom-0 inset-x-0 z-50 bg-gray-900 border-t border-gray-700 px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
       <p className="text-xs text-gray-300 max-w-2xl">
         O ReHorse usa cookies de sessão e armazenamento local para manter você conectado.
         Nenhum dado é compartilhado com terceiros.{' '}

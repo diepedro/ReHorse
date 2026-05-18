@@ -189,6 +189,19 @@ export async function initDb() {
           created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS band_history_events (
+          id              SERIAL PRIMARY KEY,
+          band_id         TEXT NOT NULL REFERENCES bands(id) ON DELETE CASCADE,
+          actor_member_id TEXT REFERENCES band_members(id) ON DELETE SET NULL,
+          actor_name      TEXT,
+          type            TEXT NOT NULL,
+          subject_type    TEXT NOT NULL,
+          subject_id      TEXT,
+          subject_name    TEXT,
+          details         TEXT NOT NULL DEFAULT '{}',
+          created_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL
+        );
+
         ALTER TABLE songs ADD COLUMN IF NOT EXISTS bpm INTEGER;
         ALTER TABLE songs ADD COLUMN IF NOT EXISTS tonality TEXT;
         ALTER TABLE songs ADD COLUMN IF NOT EXISTS notes TEXT;

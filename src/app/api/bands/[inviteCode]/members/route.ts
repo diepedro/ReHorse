@@ -3,8 +3,10 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { bands, bandMembers } from '@/lib/schema'
-import { eq, and, ilike } from 'drizzle-orm'
+import { ilike } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
+import { isColorBlocked, isMemberColor, normalizeMemberColor } from '@/lib/member-colors'
+import { recordHistoryEvent } from '@/lib/history'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,6 +34,11 @@ export async function POST(
 
   if (!displayName?.trim() || !color)
     return NextResponse.json({ error: 'displayName and color required' }, { status: 400 })
+  const normalizedColor = normalizeMemberColor(color)
+  if (!isMemberColor(normalizedColor))
+    return NextResponse.json({ error: 'Invalid color' }, { status: 400 })
+  if (isColorBlocked(band.members, normalizedColor))
+    return NextResponse.json({ error: 'Essa cor ja esta em uso. Escolha uma cor livre.' }, { status: 409 })
 
   const sortOrder = band.members.length
 
@@ -41,10 +48,20 @@ export async function POST(
       id: randomUUID(),
       bandId: band.id,
       displayName: displayName.trim(),
-      color,
+      color: normalizedColor,
       sortOrder,
     })
     .returning()
+
+  await recordHistoryEvent({
+    bandId: band.id,
+    actorName: 'Administrador',
+    type: 'member_added',
+    subjectType: 'member',
+    subjectId: member.id,
+    subjectName: member.displayName,
+    details: { color: member.color },
+  })
 
   return NextResponse.json(member, { status: 201 })
 }

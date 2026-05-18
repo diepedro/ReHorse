@@ -37,6 +37,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
   const [filterMine, setFilterMine] = useState<'all' | 'none' | 'partial' | 'full'>('all')
   const [detailSongId, setDetailSongId] = useState<number | null>(null)
   const [searchSongId, setSearchSongId] = useState<number | null>(null)
+  const [addingFromSearch, setAddingFromSearch] = useState(false)
   const [songPrimaryRef, setSongPrimaryRef] = useState<Record<number, { previewUrl: string | null; trackName: string; artistName: string; artworkUrl: string; durationMs: number | null }>>({})
   const [playingId, setPlayingId] = useState<number | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -70,6 +71,33 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
     })
     if (!res.ok) { toast('Erro ao adicionar música.', 'error'); return }
     toast('Música adicionada!', 'success')
+    fetchSongs()
+  }
+
+  async function addTrack(track: MusicTrack) {
+    const res = await fetch(`/api/bands/${inviteCode}/songs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: track.trackName,
+        reference: {
+          type: track.source,
+          refId: track.id,
+          title: `${track.trackName} — ${track.artistName}`,
+          previewUrl: track.previewUrl ?? null,
+          artworkUrl: track.artworkUrl,
+          artistName: track.artistName,
+          durationMs: track.durationMs ?? null,
+        },
+      }),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => null)
+      toast(data?.error ?? 'Erro ao adicionar música.', 'error')
+      return
+    }
+    toast('Música adicionada ao repertório!', 'success')
+    setAddingFromSearch(false)
     fetchSongs()
   }
 
@@ -478,7 +506,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
         </div>
       )}
 
-      <div className="flex items-center">
+      <div className="flex flex-wrap items-center gap-2">
         {currentMember && (
           <button
             onClick={() => setShowModal(true)}
@@ -487,9 +515,17 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
             + Adicionar música
           </button>
         )}
+        {currentMember && (
+          <button
+            onClick={() => setAddingFromSearch(true)}
+            className="mt-4 px-4 py-2.5 text-sm font-medium text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors dark:text-emerald-300 dark:bg-emerald-950/40 dark:hover:bg-emerald-950/70"
+          >
+            Buscar e adicionar
+          </button>
+        )}
         <button
           onClick={printSetlist}
-          className="mt-4 ml-2 px-4 py-2.5 text-sm font-medium text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          className="mt-4 px-4 py-2.5 text-sm font-medium text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors dark:bg-gray-900 dark:border-gray-800 dark:hover:bg-gray-800"
         >
           Exportar setlist
         </button>
@@ -513,6 +549,15 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
           songName={songs.find((s) => s.id === searchSongId)?.name ?? ''}
           onSelect={handleMusicSelect}
           onClose={() => setSearchSongId(null)}
+        />
+      )}
+
+      {addingFromSearch && (
+        <MusicSearchModal
+          songName=""
+          onSelect={addTrack}
+          onClose={() => setAddingFromSearch(false)}
+          selectLabel="Adicionar"
         />
       )}
     </div>

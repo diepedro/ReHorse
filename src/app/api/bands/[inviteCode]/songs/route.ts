@@ -83,17 +83,36 @@ export async function POST(
   { params }: { params: { inviteCode: string } }
 ) {
   const body = await request.json()
-  const { name } = body
+  const { name, reference } = body
 
   if (!name?.trim()) return NextResponse.json({ error: 'name required' }, { status: 400 })
 
   const band = await getBandByCode(params.inviteCode)
   if (!band) return NextResponse.json({ error: 'Band not found' }, { status: 404 })
 
+  const existing = await db.select().from(songs).where(eq(songs.bandId, band.id))
+  const normalizedName = name.trim().toLowerCase()
+  if (existing.some((song) => song.name.trim().toLowerCase() === normalizedName)) {
+    return NextResponse.json({ error: 'Música já está no repertório' }, { status: 409 })
+  }
+
   const [song] = await db
     .insert(songs)
     .values({ bandId: band.id, name: name.trim() })
     .returning()
+
+  if (reference?.refId && reference?.type && reference?.title) {
+    await db.insert(songReferences).values({
+      songId: song.id,
+      type: reference.type,
+      refId: reference.refId,
+      title: reference.title,
+      previewUrl: reference.previewUrl ?? null,
+      artworkUrl: reference.artworkUrl ?? null,
+      artistName: reference.artistName ?? null,
+      durationMs: reference.durationMs ?? null,
+    })
+  }
 
   return NextResponse.json({ id: song.id, name: song.name }, { status: 201 })
 }

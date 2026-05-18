@@ -28,6 +28,9 @@ export async function GET(
     inviteCode: band.inviteCode,
     createdBy: band.createdBy,
     createdAt: band.createdAt,
+    rehearsalDate: band.rehearsalDate,
+    rehearsalTime: band.rehearsalTime,
+    rehearsalNote: band.rehearsalNote,
     members: sorted.map((m) => ({
       id: m.id,
       bandId: m.bandId,

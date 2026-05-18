@@ -17,9 +17,10 @@ interface Props {
   songName: string
   onSelect: (track: MusicTrack) => void
   onClose: () => void
+  selectLabel?: string
 }
 
-export default function MusicSearchModal({ songName, onSelect, onClose }: Props) {
+export default function MusicSearchModal({ songName, onSelect, onClose, selectLabel = 'Vincular' }: Props) {
   const [query, setQuery] = useState(songName)
   const [results, setResults] = useState<MusicTrack[]>([])
   const [loading, setLoading] = useState(false)
@@ -143,7 +144,7 @@ export default function MusicSearchModal({ songName, onSelect, onClose }: Props)
                   onClick={() => handleSelect(track)}
                   className="text-xs px-3 py-1.5 bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors font-medium"
                 >
-                  Vincular
+                  {selectLabel}
                 </button>
               </div>
             </div>

@@ -17,6 +17,9 @@ export interface Band {
   inviteCode: string
   createdBy: string
   createdAt: string
+  rehearsalDate: string | null
+  rehearsalTime: string | null
+  rehearsalNote: string | null
   members: BandMember[]
 }
 

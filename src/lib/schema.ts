@@ -28,6 +28,9 @@ export const bands = pgTable('bands', {
   createdBy: text('created_by')
     .notNull()
     .references(() => users.id),
+  rehearsalDate: text('rehearsal_date'),
+  rehearsalTime: text('rehearsal_time'),
+  rehearsalNote: text('rehearsal_note'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 

@@ -193,9 +193,14 @@ export async function initDb() {
         ALTER TABLE songs ADD COLUMN IF NOT EXISTS tonality TEXT;
         ALTER TABLE songs ADD COLUMN IF NOT EXISTS notes TEXT;
 
+        ALTER TABLE bands ADD COLUMN IF NOT EXISTS rehearsal_date TEXT;
+        ALTER TABLE bands ADD COLUMN IF NOT EXISTS rehearsal_time TEXT;
+        ALTER TABLE bands ADD COLUMN IF NOT EXISTS rehearsal_note TEXT;
+
         ALTER TABLE song_references ADD COLUMN IF NOT EXISTS preview_url TEXT;
         ALTER TABLE song_references ADD COLUMN IF NOT EXISTS artwork_url TEXT;
         ALTER TABLE song_references ADD COLUMN IF NOT EXISTS artist_name TEXT;
+        ALTER TABLE song_references ADD COLUMN IF NOT EXISTS duration_ms INTEGER;
       `)
     })
   } catch (error) {

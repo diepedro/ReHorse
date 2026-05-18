@@ -10,7 +10,7 @@ import type { Suggestion } from '@/lib/types'
 export default function SuggestionsPage() {
   const { inviteCode } = useParams() as { inviteCode: string }
   const toast = useToast()
-  const { band, currentMember } = useBand()
+  const { band, currentMember, isAdmin } = useBand()
 
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [newName, setNewName] = useState('')
@@ -36,7 +36,11 @@ export default function SuggestionsPage() {
       body: JSON.stringify({ name: newName.trim(), bandMemberId: currentMember.id }),
     })
 
-    if (!res.ok) { toast('Erro ao adicionar sugestão.', 'error'); return }
+    if (!res.ok) {
+      const data = await res.json().catch(() => null)
+      toast(data?.error ?? 'Erro ao adicionar sugestão.', 'error')
+      return
+    }
 
     toast('Sugestão adicionada!', 'success')
     setNewName('')
@@ -53,25 +57,48 @@ export default function SuggestionsPage() {
       body: JSON.stringify({ suggestionId, bandMemberId: currentMember.id, vote }),
     })
 
-    if (!res.ok) { toast('Erro ao votar.', 'error'); return }
+    if (!res.ok) {
+      const data = await res.json().catch(() => null)
+      toast(data?.error ?? 'Erro ao votar.', 'error')
+      return
+    }
 
     const data = await res.json()
     if (data.promoted) {
-      toast('🎉 Todos votaram sim! Música adicionada ao repertório.', 'success')
+      toast('Música aprovada e adicionada ao repertório.', 'success')
       setTimeout(fetchSuggestions, 400)
     } else {
       fetchSuggestions()
     }
   }
 
-  async function handleDelete(id: number) {
-    if (!currentMember) return
+  async function handleDecision(id: number, action: 'promote' | 'reject') {
+    const res = await fetch(`/api/bands/${inviteCode}/suggestions`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, action }),
+    })
 
-    const res = await fetch(
-      `/api/bands/${inviteCode}/suggestions?id=${id}&bandMemberId=${currentMember.id}`,
-      { method: 'DELETE' }
-    )
-    if (!res.ok) { toast('Erro ao remover sugestão.', 'error'); return }
+    if (!res.ok) {
+      const data = await res.json().catch(() => null)
+      toast(data?.error ?? 'Erro ao atualizar sugestão.', 'error')
+      return
+    }
+
+    toast(action === 'promote' ? 'Música adicionada ao repertório.' : 'Sugestão rejeitada.', 'success')
+    fetchSuggestions()
+  }
+
+  async function handleDelete(id: number) {
+    if (!currentMember && !isAdmin) return
+
+    const query = currentMember ? `?id=${id}&bandMemberId=${currentMember.id}` : `?id=${id}`
+    const res = await fetch(`/api/bands/${inviteCode}/suggestions${query}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const data = await res.json().catch(() => null)
+      toast(data?.error ?? 'Erro ao remover sugestão.', 'error')
+      return
+    }
 
     setDeletingId(null)
     fetchSuggestions()
@@ -95,30 +122,27 @@ export default function SuggestionsPage() {
         {suggestions.map((s) => {
           const suggester = band.members.find((m) => m.id === s.suggestedBy)
           const myVote = currentMember ? s.votes[currentMember.id] : undefined
+          const yesCount = Object.values(s.votes).filter((v) => v === 'yes').length
+          const noCount = Object.values(s.votes).filter((v) => v === 'no').length
+          const threshold = Math.max(1, Math.ceil(band.members.length * 0.7))
 
           return (
             <div key={s.id} className="bg-white border border-gray-200 rounded-xl p-4 dark:bg-gray-900 dark:border-gray-800">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  {/* Title + suggester */}
                   <div className="flex items-center gap-2 mb-3">
                     <span className="font-medium text-gray-900 dark:text-gray-100">{s.name}</span>
                     {suggester && (
                       <span className="text-xs text-gray-400">
-                        por{' '}
-                        <span style={{ color: suggester.color }} className="font-medium">
-                          {suggester.displayName}
-                        </span>
+                        por <span style={{ color: suggester.color }} className="font-medium">{suggester.displayName}</span>
                       </span>
                     )}
                   </div>
 
-                  {/* Compact vote bar */}
                   <VoteBar members={sortedMembers} votes={s.votes} />
 
-                  {/* My vote buttons */}
                   {currentMember && (
-                    <div className="flex items-center gap-2 mt-3">
+                    <div className="flex flex-wrap items-center gap-2 mt-3">
                       <button
                         onClick={() => handleVote(s.id, 'yes')}
                         className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
@@ -139,29 +163,38 @@ export default function SuggestionsPage() {
                       >
                         Não
                       </button>
-                      <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">
-                        {Object.values(s.votes).filter((v) => v === 'yes').length}/
-                        {band.members.length} aprovaram
+                      <span className="text-xs text-gray-400 dark:text-gray-500">
+                        {yesCount}/{threshold} para aprovar · {noCount} não
                       </span>
+                    </div>
+                  )}
+
+                  {isAdmin && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => handleDecision(s.id, 'promote')}
+                        className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400"
+                      >
+                        Aprovar e adicionar
+                      </button>
+                      <button
+                        onClick={() => handleDecision(s.id, 'reject')}
+                        className="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400"
+                      >
+                        Rejeitar
+                      </button>
                     </div>
                   )}
                 </div>
 
-                {/* Delete — only suggester */}
-                {currentMember?.id === s.suggestedBy && (
+                {(currentMember?.id === s.suggestedBy || isAdmin) && (
                   <div className="shrink-0">
                     {deletingId === s.id ? (
                       <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleDelete(s.id)}
-                          className="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1"
-                        >
+                        <button onClick={() => handleDelete(s.id)} className="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1">
                           Remover
                         </button>
-                        <button
-                          onClick={() => setDeletingId(null)}
-                          className="text-xs text-gray-400 hover:text-gray-600 dark:text-gray-600 dark:hover:text-gray-400 px-1 py-1"
-                        >
+                        <button onClick={() => setDeletingId(null)} className="text-xs text-gray-400 hover:text-gray-600 dark:text-gray-600 dark:hover:text-gray-400 px-1 py-1">
                           Cancelar
                         </button>
                       </div>
@@ -184,11 +217,10 @@ export default function SuggestionsPage() {
         })}
       </div>
 
-      {/* Add suggestion */}
       {currentMember && (
         <>
           {showInput ? (
-            <form onSubmit={handleAdd} className="mt-4 flex gap-2">
+            <form onSubmit={handleAdd} className="mt-4 flex flex-col gap-2 sm:flex-row">
               <input
                 autoFocus
                 type="text"
@@ -216,7 +248,7 @@ export default function SuggestionsPage() {
       )}
 
       <p className="text-xs text-gray-400 dark:text-gray-500 mt-4">
-        Quando todos votarem Sim, a música vai automaticamente para o repertório.
+        A sugestão vai automaticamente para o repertório quando atingir 70% de aprovação. Admins também podem aprovar manualmente.
       </p>
     </div>
   )

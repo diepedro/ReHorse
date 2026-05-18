@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { bands, bandMembers, suggestions, suggestionVotes, songs } from '@/lib/schema'
-import { eq, and, inArray, count, ilike } from 'drizzle-orm'
+import { bands, suggestions, suggestionVotes, songs } from '@/lib/schema'
+import { eq, and, ilike } from 'drizzle-orm'
 import { pushToBand } from '@/lib/push'
 
 export const dynamic = 'force-dynamic'
@@ -43,40 +43,38 @@ export async function PUT(
       set: { vote },
     })
 
-  // Check if all band members voted yes → promote to repertoire
   const votes = await db
     .select()
     .from(suggestionVotes)
     .where(eq(suggestionVotes.suggestionId, Number(suggestionId)))
 
   const memberCount = band.members.length
-  const allVotedYes =
-    votes.filter((v) => v.vote === 'yes').length === memberCount &&
-    votes.length === memberCount
+  const yesCount = votes.filter((v) => v.vote === 'yes').length
+  const noCount = votes.filter((v) => v.vote === 'no').length
+  const approvalThreshold = Math.max(1, Math.ceil(memberCount * 0.7))
+  const approved = yesCount >= approvalThreshold && yesCount > noCount
 
   let promoted = false
 
-  if (allVotedYes) {
-    await db.insert(songs).values({ bandId: band.id, name: suggestion.name })
+  if (approved) {
+    const existing = await db.select().from(songs).where(eq(songs.bandId, band.id))
+    const duplicate = existing.some((song) => song.name.trim().toLowerCase() === suggestion.name.trim().toLowerCase())
+    if (!duplicate) await db.insert(songs).values({ bandId: band.id, name: suggestion.name })
     await db.delete(suggestions).where(eq(suggestions.id, Number(suggestionId)))
     promoted = true
 
     pushToBand(band.id, {
-      title: '✅ Música aprovada!',
+      title: 'Música aprovada',
       body: `"${suggestion.name}" foi adicionada ao repertório da banda.`,
-      url: `/${params.inviteCode}/musicas`,
+      url: `/band/${params.inviteCode}/songs`,
     }).catch(() => {})
-  } else {
-    // Check if all members have voted (but not unanimously yes)
-    const allVoted = votes.length === memberCount
-    if (allVoted) {
-      pushToBand(band.id, {
-        title: '🗳️ Votação encerrada',
-        body: `"${suggestion.name}" continua nas sugestões — não houve unanimidade.`,
-        url: `/${params.inviteCode}/sugestoes`,
-      }).catch(() => {})
-    }
+  } else if (votes.length === memberCount) {
+    pushToBand(band.id, {
+      title: 'Votação encerrada',
+      body: `"${suggestion.name}" continua nas sugestões.`,
+      url: `/band/${params.inviteCode}/suggestions`,
+    }).catch(() => {})
   }
 
-  return NextResponse.json({ ok: true, promoted })
+  return NextResponse.json({ ok: true, promoted, yesCount, noCount, approvalThreshold })
 }

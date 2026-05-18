@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { bands, bandMembers, suggestions, suggestionVotes } from '@/lib/schema'
+import { bands, suggestions, suggestionVotes, songs } from '@/lib/schema'
 import { eq, and, inArray, ilike } from 'drizzle-orm'
 import { pushToBand } from '@/lib/push'
 
@@ -68,6 +70,18 @@ export async function POST(
   if (!band.members.find((m) => m.id === bandMemberId))
     return NextResponse.json({ error: 'Member not in band' }, { status: 403 })
 
+  const normalized = name.trim().toLowerCase()
+  const [existingSongs, existingSuggestions] = await Promise.all([
+    db.select().from(songs).where(eq(songs.bandId, band.id)),
+    db.select().from(suggestions).where(eq(suggestions.bandId, band.id)),
+  ])
+  if (existingSongs.some((s) => s.name.trim().toLowerCase() === normalized)) {
+    return NextResponse.json({ error: 'Música já está no repertório' }, { status: 409 })
+  }
+  if (existingSuggestions.some((s) => s.name.trim().toLowerCase() === normalized)) {
+    return NextResponse.json({ error: 'Sugestão já existe' }, { status: 409 })
+  }
+
   const [suggestion] = await db
     .insert(suggestions)
     .values({ bandId: band.id, name: name.trim(), suggestedBy: bandMemberId })
@@ -93,6 +107,57 @@ export async function POST(
   ).catch(() => {})
 
   return NextResponse.json({ id: suggestion.id }, { status: 201 })
+}
+
+// PATCH /api/bands/[inviteCode]/suggestions — admin approve/reject
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { inviteCode: string } }
+) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const body = await request.json()
+  const id = Number(body.id)
+  const action = body.action
+  if (!id || (action !== 'promote' && action !== 'reject')) {
+    return NextResponse.json({ error: 'id and valid action required' }, { status: 400 })
+  }
+
+  const band = await getBand(params.inviteCode)
+  if (!band) return NextResponse.json({ error: 'Band not found' }, { status: 404 })
+  if (band.createdBy !== session.user.id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const suggestion = await db.query.suggestions.findFirst({
+    where: and(eq(suggestions.id, id), eq(suggestions.bandId, band.id)),
+  })
+  if (!suggestion) return NextResponse.json({ error: 'Suggestion not found' }, { status: 404 })
+
+  if (action === 'promote') {
+    const existing = await db.select().from(songs).where(eq(songs.bandId, band.id))
+    const duplicate = existing.some((song) => song.name.trim().toLowerCase() === suggestion.name.trim().toLowerCase())
+    if (!duplicate) await db.insert(songs).values({ bandId: band.id, name: suggestion.name })
+    await db.delete(suggestions).where(eq(suggestions.id, id))
+
+    pushToBand(band.id, {
+      title: 'Música aprovada',
+      body: `"${suggestion.name}" foi adicionada ao repertório.`,
+      url: `/band/${params.inviteCode}/songs`,
+    }).catch(() => {})
+
+    return NextResponse.json({ ok: true, promoted: !duplicate })
+  }
+
+  await db.delete(suggestions).where(eq(suggestions.id, id))
+  pushToBand(band.id, {
+    title: 'Sugestão encerrada',
+    body: `"${suggestion.name}" foi removida das sugestões.`,
+    url: `/band/${params.inviteCode}/suggestions`,
+  }).catch(() => {})
+
+  return NextResponse.json({ ok: true, rejected: true })
 }
 
 // DELETE /api/bands/[inviteCode]/suggestions?id=123

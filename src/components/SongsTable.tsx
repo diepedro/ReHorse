@@ -1,12 +1,20 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import StatusBadge from './StatusBadge'
 import AddSongModal from './AddSongModal'
-import SongDetailDrawer from './SongDetailDrawer'
-import MusicSearchModal, { type MusicTrack } from './MusicSearchModal'
 import { useToast } from './ToastProvider'
+import type { MusicTrack } from './MusicSearchModal'
 import type { BandMember, Song, SongStatus } from '@/lib/types'
+
+const SongDetailDrawer = dynamic(() => import('./SongDetailDrawer'), {
+  loading: () => null,
+})
+
+const MusicSearchModal = dynamic(() => import('./MusicSearchModal'), {
+  loading: () => null,
+})
 
 const CYCLE: SongStatus[] = ['none', 'partial', 'full']
 

@@ -15,11 +15,15 @@ export default function PushSubscriber() {
   useEffect(() => {
     if (typeof window === 'undefined') return
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+    if (!('Notification' in window)) return
     if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) return
 
     let timer: ReturnType<typeof setTimeout> | null = null
+    let idleId: number | null = null
+    let cancelled = false
 
     function maybeShowPrompt() {
+      if (cancelled) return
       const permission = Notification.permission
 
       if (permission === 'granted') {
@@ -36,11 +40,17 @@ export default function PushSubscriber() {
       }
     }
 
-    maybeShowPrompt()
+    if ('requestIdleCallback' in window) {
+      idleId = window.requestIdleCallback(() => maybeShowPrompt(), { timeout: 5000 })
+    } else {
+      timer = setTimeout(() => maybeShowPrompt(), 2500)
+    }
     window.addEventListener('lgpd:accepted', maybeShowPrompt)
 
     return () => {
+      cancelled = true
       if (timer) clearTimeout(timer)
+      if (idleId !== null && 'cancelIdleCallback' in window) window.cancelIdleCallback(idleId)
       window.removeEventListener('lgpd:accepted', maybeShowPrompt)
     }
   }, [])

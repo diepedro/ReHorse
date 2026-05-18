@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
 import './globals.css'
 import ToastProvider from '@/components/ToastProvider'
 import SessionProviderWrapper from '@/components/SessionProviderWrapper'
@@ -8,8 +7,6 @@ import ErrorBoundary from '@/components/ErrorBoundary'
 import LgpdBanner from '@/components/LgpdBanner'
 import PwaInstaller from '@/components/PwaInstaller'
 import PushSubscriber from '@/components/PushSubscriber'
-
-const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'ReHorse',
@@ -33,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="theme-color" content="#030712" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
-      <body className={`${inter.className} bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100 min-h-screen`}>
+      <body className="bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100 min-h-screen">
         <ErrorBoundary>
           <SessionProviderWrapper>
             <SessionSaver />

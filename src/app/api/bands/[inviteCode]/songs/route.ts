@@ -33,32 +33,30 @@ export async function GET(
   const songIds = bandSongs.map((s) => s.id)
   const memberIds = band.members.map((m) => m.id)
 
-  const statuses =
+  const [statuses, rehearsedRows, refsRows] = await Promise.all([
     memberIds.length > 0
-      ? await db
-          .select()
-          .from(songStatus)
-          .where(inArray(songStatus.songId, songIds))
-      : []
+      ? db.select().from(songStatus).where(inArray(songStatus.songId, songIds))
+      : Promise.resolve([]),
+    db.select().from(songRehearsed).where(inArray(songRehearsed.songId, songIds)),
+    db.select().from(songReferences).where(inArray(songReferences.songId, songIds)),
+  ])
 
-  const rehearsedRows = await db
-    .select()
-    .from(songRehearsed)
-    .where(inArray(songRehearsed.songId, songIds))
-
-  const refsRows = await db
-    .select()
-    .from(songReferences)
-    .where(inArray(songReferences.songId, songIds))
+  const statusBySongMember = new Map(statuses.map((status) => [`${status.songId}:${status.bandMemberId}`, status]))
+  const rehearsedBySong = new Map(rehearsedRows.map((row) => [row.songId, row]))
+  const primaryRefBySong = new Map(
+    refsRows
+      .filter((row) => row.type === 'itunes')
+      .map((row) => [row.songId, row]),
+  )
 
   const result = bandSongs.map((song) => {
     const statusMap: Record<string, SongStatus> = {}
     for (const m of band.members) {
-      const row = statuses.find((s) => s.songId === song.id && s.bandMemberId === m.id)
+      const row = statusBySongMember.get(`${song.id}:${m.id}`)
       statusMap[m.id] = (row?.status ?? 'none') as SongStatus
     }
-    const rehearsed = rehearsedRows.find((r) => r.songId === song.id)
-    const primaryRef = refsRows.find((r) => r.songId === song.id && r.type === 'itunes')
+    const rehearsed = rehearsedBySong.get(song.id)
+    const primaryRef = primaryRefBySong.get(song.id)
     return {
       id: song.id,
       name: song.name,

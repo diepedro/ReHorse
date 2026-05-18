@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useParams, useRouter } from 'next/navigation'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import type { Band, BandMember } from '@/lib/types'
 import ThemeToggle from '@/components/ThemeToggle'
@@ -75,6 +75,27 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
   useEffect(() => { fetchBand() }, [fetchBand])
   useEffect(() => { if (editingName) nameInputRef.current?.focus() }, [editingName])
 
+  const tabs = useMemo(() => [
+    { href: `/band/${inviteCode}/rehearsals`, label: 'Ensaios' },
+    { href: `/band/${inviteCode}/songs`, label: 'Músicas' },
+    { href: `/band/${inviteCode}/suggestions`, label: 'Sugestões' },
+    { href: `/band/${inviteCode}/insights`, label: 'Análise' },
+    { href: `/band/${inviteCode}/ensaio`, label: '🎸 Ensaiar' },
+    { href: `/band/${inviteCode}/settings`, label: 'Ajustes' },
+  ], [inviteCode])
+
+  const mobileTabs = useMemo(() => [
+    { href: `/band/${inviteCode}/rehearsals`, label: 'Ensaios' },
+    { href: `/band/${inviteCode}/songs`, label: 'Músicas' },
+    { href: `/band/${inviteCode}/suggestions`, label: 'Sug.' },
+    { href: `/band/${inviteCode}/ensaio`, label: 'Ensaiar' },
+    { href: `/band/${inviteCode}/settings`, label: 'Ajustes' },
+  ], [inviteCode])
+
+  useEffect(() => {
+    for (const tab of tabs) router.prefetch(tab.href)
+  }, [router, tabs])
+
   async function saveName() {
     const trimmed = nameValue.trim()
     if (!trimmed || !currentMember || trimmed === currentMember.displayName) {
@@ -101,7 +122,7 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#080d16]">
         <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
       </div>
     )
@@ -113,26 +134,11 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
   const sessionName = session?.user?.name
   const suggestAccountName = sessionName && currentMember && sessionName !== currentMember.displayName
 
-  const tabs = [
-    { href: `/band/${inviteCode}/rehearsals`, label: 'Ensaios' },
-    { href: `/band/${inviteCode}/songs`, label: 'Músicas' },
-    { href: `/band/${inviteCode}/suggestions`, label: 'Sugestões' },
-    { href: `/band/${inviteCode}/insights`, label: 'Análise' },
-    { href: `/band/${inviteCode}/ensaio`, label: '🎸 Ensaiar' },
-    { href: `/band/${inviteCode}/settings`, label: 'Ajustes' },
-  ]
-  const mobileTabs = [
-    { href: `/band/${inviteCode}/rehearsals`, label: 'Ensaios' },
-    { href: `/band/${inviteCode}/songs`, label: 'Músicas' },
-    { href: `/band/${inviteCode}/suggestions`, label: 'Sug.' },
-    { href: `/band/${inviteCode}/ensaio`, label: 'Ensaiar' },
-    { href: `/band/${inviteCode}/settings`, label: 'Ajustes' },
-  ]
   const joinLabel = isAdmin ? 'Escolher slot' : 'Entrar na banda'
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <header className="bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-800 sticky top-0 z-10">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#080d16]">
+      <header className="bg-white border-b border-gray-200 dark:bg-[#111827]/95 dark:border-gray-800 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-2 min-w-0">
@@ -222,7 +228,7 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
                   href={tab.href}
                   className={`px-3 sm:px-4 py-2.5 text-sm font-medium whitespace-nowrap rounded-t-lg transition-colors ${
                     isActive
-                      ? 'bg-gray-50 text-gray-900 border border-gray-200 border-b-gray-50 -mb-px dark:bg-gray-950 dark:text-gray-100 dark:border-gray-800 dark:border-b-gray-950'
+                      ? 'bg-gray-50 text-gray-900 border border-gray-200 border-b-gray-50 -mb-px dark:bg-[#080d16] dark:text-gray-100 dark:border-gray-800 dark:border-b-[#080d16]'
                       : 'text-gray-500 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300'
                   }`}
                 >
@@ -236,10 +242,10 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
 
       {/* Guest/admin slot banner */}
       {!currentMember && isAdmin && (
-        <div className="bg-blue-50 border-b border-blue-200 dark:bg-blue-950 dark:border-blue-900 px-4 py-2.5 text-center">
-          <p className="text-xs text-blue-800 dark:text-blue-200">
+        <div className="border-b border-blue-100 bg-blue-50 px-4 py-2.5 text-center dark:border-gray-800 dark:bg-[#0c1626]">
+          <p className="text-xs text-blue-800 dark:text-gray-300">
             Você administra esta banda.{' '}
-            <Link href={`/join/${inviteCode}`} className="font-semibold underline">
+            <Link href={`/join/${inviteCode}`} className="font-semibold text-blue-700 underline dark:text-blue-300">
               Escolha seu slot para participar dos ensaios e músicas →
             </Link>
           </p>
@@ -247,10 +253,10 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
       )}
 
       {!currentMember && !isAdmin && (
-        <div className="bg-amber-50 border-b border-amber-200 dark:bg-amber-950 dark:border-amber-900 px-4 py-2.5 text-center">
-          <p className="text-xs text-amber-800">
+        <div className="border-b border-amber-100 bg-amber-50 px-4 py-2.5 text-center dark:border-gray-800 dark:bg-[#121827]">
+          <p className="text-xs text-amber-800 dark:text-gray-300">
             Você está visualizando como <strong>convidado</strong>.{' '}
-            <Link href={`/join/${inviteCode}`} className="font-semibold underline">
+            <Link href={`/join/${inviteCode}`} className="font-semibold text-amber-700 underline dark:text-amber-300">
               Escolha seu slot para interagir →
             </Link>
           </p>
@@ -259,17 +265,17 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
 
       {/* Nudge: member but no account */}
       {currentMember && !session?.user && (
-        <div className="bg-blue-50 border-b border-blue-200 dark:bg-blue-950 dark:border-blue-900 px-4 py-2.5 text-center">
-          <p className="text-xs text-blue-800">
+        <div className="border-b border-blue-100 bg-blue-50 px-4 py-2.5 text-center dark:border-gray-800 dark:bg-[#0c1626]">
+          <p className="text-xs text-blue-800 dark:text-gray-300">
             Você está como <strong>{currentMember.displayName}</strong> neste dispositivo.{' '}
-            <Link href="/auth/register" className="font-semibold underline">
+            <Link href="/auth/register" className="font-semibold text-blue-700 underline dark:text-blue-300">
               Crie uma conta para acessar de qualquer lugar →
             </Link>
           </p>
         </div>
       )}
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-5 sm:py-6 pb-24 sm:pb-6 dark:bg-gray-950">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-5 sm:py-6 pb-24 sm:pb-6">
         <BandContext.Provider value={{ band, currentMember, isAdmin: !!isAdmin, refetch: fetchBand }}>
           <div className="page-enter">
             {children}
@@ -277,7 +283,7 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
         </BandContext.Provider>
       </main>
 
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-gray-200 bg-white/95 backdrop-blur dark:border-gray-800 dark:bg-gray-950/95" aria-label="Seções principais">
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-gray-200 bg-white/95 backdrop-blur dark:border-gray-800 dark:bg-[#111827]/95" aria-label="Seções principais">
         <div className="grid grid-cols-5">
           {mobileTabs.map((tab) => {
             const isActive = pathname === tab.href

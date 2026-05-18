@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import type { Song, BandMember } from '@/lib/types'
 import { useBand } from '@/contexts/BandContext'
 import BandHistoryPanel from '@/components/BandHistoryPanel'
+import { cachedJson, invalidateCache } from '@/lib/client-cache'
 
 interface RehearsalSession {
   id: number
@@ -63,12 +64,10 @@ export default function EnsaioPage() {
   const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchSession = useCallback(async () => {
-    const [sRes, songsRes] = await Promise.all([
-      fetch(`/api/bands/${inviteCode}/rehearsal`),
-      fetch(`/api/bands/${inviteCode}/songs`),
+    const [s, allSongs] = await Promise.all([
+      cachedJson<RehearsalSession | null>(`/api/bands/${inviteCode}/rehearsal`, 3000).catch(() => null),
+      cachedJson<Song[]>(`/api/bands/${inviteCode}/songs`).catch(() => []),
     ])
-    const s: RehearsalSession | null = sRes.ok ? await sRes.json() : null
-    const allSongs: Song[] = songsRes.ok ? await songsRes.json() : []
 
     setSongs(allSongs)
     setSession(s)
@@ -107,6 +106,7 @@ export default function EnsaioPage() {
     setSession(false)
     const actorQuery = currentMember ? `?bandMemberId=${encodeURIComponent(currentMember.id)}` : ''
     const res = await fetch(`/api/bands/${inviteCode}/rehearsal${actorQuery}`, { method: 'POST' })
+    invalidateCache(`/api/bands/${inviteCode}/rehearsal`)
     if (res.ok) fetchSession()
   }
 
@@ -115,6 +115,7 @@ export default function EnsaioPage() {
     const actorQuery = currentMember ? `?bandMemberId=${encodeURIComponent(currentMember.id)}` : ''
     const res = await fetch(`/api/bands/${inviteCode}/rehearsal${actorQuery}`, { method: 'DELETE' })
     if (!res.ok) alert('Nao foi possivel encerrar o ensaio.')
+    invalidateCache(`/api/bands/${inviteCode}/rehearsal`)
     await fetchSession()
     setEnding(false)
   }
@@ -125,6 +126,7 @@ export default function EnsaioPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
+    invalidateCache(`/api/bands/${inviteCode}/rehearsal`)
   }
 
   async function togglePlayed(songId: number) {
@@ -148,6 +150,7 @@ export default function EnsaioPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ songId, rehearsed: true, status: next }),
     })
+    invalidateCache(`/api/bands/${inviteCode}/songs`)
   }
 
   // ── Drag helpers ───────────────────────────────────────────────────────────

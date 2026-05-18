@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import CalendarDay from './CalendarDay'
 import Legend from './Legend'
 import type { Availability, BandMember } from '@/lib/types'
+import { cachedJson, invalidateCache } from '@/lib/client-cache'
 
 const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 const MONTH_NAMES = [
@@ -51,10 +52,12 @@ export default function Calendar({
   const endDate = formatDate(days[days.length - 1])
 
   const fetchAvailability = useCallback(async () => {
-    const res = await fetch(
-      `/api/bands/${inviteCode}/availability?start=${startDate}&end=${endDate}`
-    )
-    if (res.ok) setAvailability(await res.json())
+    const url = `/api/bands/${inviteCode}/availability?start=${startDate}&end=${endDate}`
+    try {
+      setAvailability(await cachedJson<Availability[]>(url))
+    } catch {
+      setAvailability([])
+    }
     setLoading(false)
   }, [inviteCode, startDate, endDate])
 
@@ -83,6 +86,7 @@ export default function Calendar({
       body: JSON.stringify({ bandMemberId: currentMember.id, date: dateStr, status: newStatus }),
     })
 
+    invalidateCache(`/api/bands/${inviteCode}/availability`)
     fetchAvailability()
   }
 

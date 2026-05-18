@@ -7,6 +7,7 @@ import VoteBar from '@/components/VoteBar'
 import BandHistoryPanel from '@/components/BandHistoryPanel'
 import { useBand } from '@/contexts/BandContext'
 import type { Suggestion } from '@/lib/types'
+import { cachedJson, invalidateCache } from '@/lib/client-cache'
 
 export default function SuggestionsPage() {
   const { inviteCode } = useParams() as { inviteCode: string }
@@ -19,9 +20,12 @@ export default function SuggestionsPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const fetchSuggestions = useCallback(async () => {
-    const res = await fetch(`/api/bands/${inviteCode}/suggestions`)
-    if (res.ok) setSuggestions(await res.json())
-  }, [inviteCode])
+    try {
+      setSuggestions(await cachedJson<Suggestion[]>(`/api/bands/${inviteCode}/suggestions`))
+    } catch {
+      toast('Erro ao carregar sugestoes.', 'error')
+    }
+  }, [inviteCode, toast])
 
   useEffect(() => {
     fetchSuggestions()
@@ -43,6 +47,7 @@ export default function SuggestionsPage() {
       return
     }
 
+    invalidateCache(`/api/bands/${inviteCode}/suggestions`)
     toast('Sugestão adicionada!', 'success')
     setNewName('')
     setShowInput(false)
@@ -65,6 +70,7 @@ export default function SuggestionsPage() {
     }
 
     const data = await res.json()
+    invalidateCache(`/api/bands/${inviteCode}/suggestions`)
     if (data.promoted) {
       toast('Música aprovada e adicionada ao repertório.', 'success')
       setTimeout(fetchSuggestions, 400)
@@ -86,6 +92,7 @@ export default function SuggestionsPage() {
       return
     }
 
+    invalidateCache(`/api/bands/${inviteCode}/suggestions`)
     toast(action === 'promote' ? 'Música adicionada ao repertório.' : 'Sugestão rejeitada.', 'success')
     fetchSuggestions()
   }
@@ -101,6 +108,7 @@ export default function SuggestionsPage() {
       return
     }
 
+    invalidateCache(`/api/bands/${inviteCode}/suggestions`)
     setDeletingId(null)
     fetchSuggestions()
   }
@@ -119,7 +127,7 @@ export default function SuggestionsPage() {
         </div>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {suggestions.map((s) => {
           const suggester = band.members.find((m) => m.id === s.suggestedBy)
           const myVote = currentMember ? s.votes[currentMember.id] : undefined
@@ -128,10 +136,10 @@ export default function SuggestionsPage() {
           const threshold = Math.max(1, Math.ceil(band.members.length * 0.7))
 
           return (
-            <div key={s.id} className="bg-white border border-gray-200 rounded-xl p-4 dark:bg-gray-900 dark:border-gray-800">
+            <div key={s.id} className="bg-white border border-gray-200 rounded-lg p-3.5 dark:bg-gray-900/70 dark:border-gray-800">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-3">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-2">
                     <span className="font-medium text-gray-900 dark:text-gray-100">{s.name}</span>
                     {suggester && (
                       <span className="text-xs text-gray-400">
@@ -143,7 +151,7 @@ export default function SuggestionsPage() {
                   <VoteBar members={sortedMembers} votes={s.votes} />
 
                   {currentMember && (
-                    <div className="flex flex-wrap items-center gap-2 mt-3">
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
                       <button
                         onClick={() => handleVote(s.id, 'yes')}
                         className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
@@ -171,7 +179,7 @@ export default function SuggestionsPage() {
                   )}
 
                   {isAdmin && (
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
                       <button
                         onClick={() => handleDecision(s.id, 'promote')}
                         className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400"

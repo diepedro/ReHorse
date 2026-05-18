@@ -7,6 +7,7 @@ import AddSongModal from './AddSongModal'
 import { useToast } from './ToastProvider'
 import type { MusicTrack } from './MusicSearchModal'
 import type { BandMember, Song, SongStatus } from '@/lib/types'
+import { cachedJson, invalidateCache } from '@/lib/client-cache'
 
 const SongDetailDrawer = dynamic(() => import('./SongDetailDrawer'), {
   loading: () => null,
@@ -54,18 +55,20 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
   const sortedMembers = [...allMembers].sort((a, b) => a.sortOrder - b.sortOrder)
 
   const fetchSongs = useCallback(async () => {
-    const res = await fetch(`/api/bands/${inviteCode}/songs`)
-    if (res.ok) {
-      const data: Array<Song & { itunesRef: { previewUrl: string | null; trackName: string; artistName: string; artworkUrl: string; durationMs: number | null } | null }> = await res.json()
+    try {
+      const data = await cachedJson<Array<Song & { itunesRef: { previewUrl: string | null; trackName: string; artistName: string; artworkUrl: string; durationMs: number | null } | null }>>(`/api/bands/${inviteCode}/songs`)
       setSongs(data)
       const refs: Record<number, { previewUrl: string | null; trackName: string; artistName: string; artworkUrl: string; durationMs: number | null }> = {}
       for (const s of data) {
         if (s.itunesRef) refs[s.id] = s.itunesRef
       }
       setSongPrimaryRef(refs)
+    } catch {
+      toast('Erro ao carregar musicas.', 'error')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
-  }, [inviteCode])
+  }, [inviteCode, toast])
 
   useEffect(() => {
     fetchSongs()
@@ -78,6 +81,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
       body: JSON.stringify({ name, bandMemberId: currentMember?.id }),
     })
     if (!res.ok) { toast('Erro ao adicionar música.', 'error'); return }
+    invalidateCache(`/api/bands/${inviteCode}/songs`)
     toast('Música adicionada!', 'success')
     fetchSongs()
   }
@@ -105,6 +109,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
       toast(data?.error ?? 'Erro ao adicionar música.', 'error')
       return
     }
+    invalidateCache(`/api/bands/${inviteCode}/songs`)
     toast('Música adicionada ao repertório!', 'success')
     setAddingFromSearch(false)
     fetchSongs()
@@ -114,6 +119,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
     const actorQuery = currentMember ? `&bandMemberId=${encodeURIComponent(currentMember.id)}` : ''
     const res = await fetch(`/api/bands/${inviteCode}/songs?id=${id}${actorQuery}`, { method: 'DELETE' })
     if (!res.ok) { toast('Erro ao remover música.', 'error'); return }
+    invalidateCache(`/api/bands/${inviteCode}/songs`)
     setConfirmDelete(null)
     fetchSongs()
   }
@@ -129,6 +135,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ songId, bandMemberId: memberId, status: next }),
     })
+    invalidateCache(`/api/bands/${inviteCode}/songs`)
     fetchSongs()
   }
 
@@ -142,6 +149,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ songId, rehearsed: true, status: next }),
     })
+    invalidateCache(`/api/bands/${inviteCode}/songs`)
     fetchSongs()
   }
 
@@ -204,6 +212,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
       }),
     })
     if (!res.ok) { toast('Erro ao vincular música.', 'error'); return }
+    invalidateCache(`/api/bands/${inviteCode}/songs`)
     setSongPrimaryRef((prev) => ({
       ...prev,
       [searchSongId]: {
@@ -347,11 +356,11 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
         )}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden dark:bg-gray-900 dark:border-gray-800">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden dark:bg-gray-900/70 dark:border-gray-800">
         <div className="overflow-x-auto scrollbar-none">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50 dark:bg-gray-800/50">
+              <tr className="border-b border-gray-100 bg-gray-50/50 dark:border-gray-800 dark:bg-gray-900">
                 <th className="w-10" />
                 <th className="text-left px-4 py-3 font-medium text-gray-500 min-w-[140px] dark:text-gray-400">Música</th>
                 {sortedMembers.map((m) => (
@@ -407,7 +416,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                 filtered.map((song) => (
                   <tr
                     key={song.id}
-                    className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors dark:hover:bg-gray-800/50"
+                    className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors last:border-b-0 dark:border-gray-800/80 dark:hover:bg-gray-800/40"
                   >
                     <td className="px-2 py-3 w-10 text-center">
                       <button
@@ -416,8 +425,8 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                           playingId === song.id
                             ? 'bg-emerald-500 text-white'
                             : songPrimaryRef[song.id]
-                            ? 'bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-700'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-600'
+                            ? 'bg-gray-900 dark:bg-gray-700/80 text-white hover:bg-gray-700'
+                            : 'bg-gray-100 dark:bg-gray-800/80 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-600'
                         }`}
                         title={songPrimaryRef[song.id] ? 'Tocar pré-escuta' : 'Vincular música'}
                       >
@@ -490,7 +499,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                       ) : (
                         <button
                           onClick={() => setConfirmDelete(song.id)}
-                          className="text-gray-300 hover:text-red-400 transition-colors"
+                            className="text-gray-300 hover:text-red-400 transition-colors dark:text-gray-500 dark:hover:text-red-400"
                           title="Remover música"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">

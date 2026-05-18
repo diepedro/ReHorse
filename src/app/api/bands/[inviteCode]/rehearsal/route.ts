@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { bands, bandMembers, songs, rehearsalSessions } from '@/lib/schema'
-import { and, eq, ilike, isNull, desc } from 'drizzle-orm'
+import { and, eq, ilike, isNull, desc, inArray } from 'drizzle-orm'
 import { recordHistoryEvent } from '@/lib/history'
 
 export const dynamic = 'force-dynamic'
@@ -44,13 +44,10 @@ export async function POST(
   if (!band) return NextResponse.json({ error: 'Band not found' }, { status: 404 })
   const actor = await getActor(req, band.id)
 
-  // End any active session
-  const allSessions = await db.select().from(rehearsalSessions).where(eq(rehearsalSessions.bandId, band.id))
-  for (const s of allSessions) {
-    if (!s.endedAt) {
-      await db.update(rehearsalSessions).set({ endedAt: new Date() }).where(eq(rehearsalSessions.id, s.id))
-    }
-  }
+  await db
+    .update(rehearsalSessions)
+    .set({ endedAt: new Date() })
+    .where(and(eq(rehearsalSessions.bandId, band.id), isNull(rehearsalSessions.endedAt)))
 
   // Default song order = current songs sorted by id
   const bandSongs = await db.select({ id: songs.id }).from(songs).where(eq(songs.bandId, band.id))
@@ -92,8 +89,10 @@ export async function PATCH(
   if (Object.keys(update).length === 0)
     return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
 
-  const allSessions = await db.select().from(rehearsalSessions).where(eq(rehearsalSessions.bandId, band.id))
-  const active = allSessions.find((s) => !s.endedAt)
+  const active = await db.query.rehearsalSessions.findFirst({
+    where: and(eq(rehearsalSessions.bandId, band.id), isNull(rehearsalSessions.endedAt)),
+    orderBy: desc(rehearsalSessions.createdAt),
+  })
   if (!active) return NextResponse.json({ error: 'No active session' }, { status: 404 })
 
   await db.update(rehearsalSessions).set(update).where(eq(rehearsalSessions.id, active.id))
@@ -121,7 +120,10 @@ export async function DELETE(
 
   const playedSongs = safeArray(active.playedSongs)
   const songRows = playedSongs.length > 0
-    ? await db.select({ id: songs.id, name: songs.name }).from(songs)
+    ? await db
+        .select({ id: songs.id, name: songs.name })
+        .from(songs)
+        .where(and(eq(songs.bandId, band.id), inArray(songs.id, playedSongs)))
     : []
   const playedNames = playedSongs
     .map((id) => songRows.find((song) => song.id === id)?.name)

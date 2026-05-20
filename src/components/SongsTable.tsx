@@ -19,6 +19,24 @@ const MusicSearchModal = dynamic(() => import('./MusicSearchModal'), {
 
 const CYCLE: SongStatus[] = ['none', 'partial', 'full']
 
+const STATUS_META: Record<SongStatus, { label: string; short: string; classes: string }> = {
+  none: {
+    label: 'Nada',
+    short: 'N',
+    classes: 'bg-gray-100 text-gray-500 ring-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:ring-gray-700',
+  },
+  partial: {
+    label: 'Parcial',
+    short: 'P',
+    classes: 'bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:ring-amber-800',
+  },
+  full: {
+    label: 'Total',
+    short: 'T',
+    classes: 'bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:ring-emerald-800',
+  },
+}
+
 function fmtDuration(ms: number) {
   const totalSec = Math.round(ms / 1000)
   const h = Math.floor(totalSec / 3600)
@@ -26,6 +44,16 @@ function fmtDuration(ms: number) {
   const s = totalSec % 60
   if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
   return `${m}:${String(s).padStart(2, '0')}`
+}
+
+function countStatuses(song: Song, members: BandMember[]) {
+  return members.reduce(
+    (acc, member) => {
+      acc[song.statuses[member.id] ?? 'none'] += 1
+      return acc
+    },
+    { full: 0, partial: 0, none: 0 } as Record<SongStatus, number>
+  )
 }
 
 interface SongsTableProps {
@@ -356,7 +384,143 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
         )}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden dark:bg-gray-900/70 dark:border-gray-800">
+      <div className="sm:hidden">
+        {loading ? (
+          <div className="rounded-xl border border-gray-200 bg-white py-8 dark:border-gray-800 dark:bg-gray-900/70">
+            <div className="mx-auto h-5 w-5 animate-spin rounded-full border-2 border-gray-200 border-t-gray-500" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="rounded-xl border border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-400 dark:border-gray-800 dark:bg-gray-900/70">
+            {search ? 'Nenhuma música encontrada.' : 'Nenhuma música adicionada ainda.'}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filtered.map((song) => {
+              const counts = countStatuses(song, sortedMembers)
+              const ownStatus = currentMember ? song.statuses[currentMember.id] ?? 'none' : null
+              const duration = songPrimaryRef[song.id]?.durationMs
+
+              return (
+                <article key={song.id} className="rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900/70">
+                  <div className="flex items-start gap-2">
+                    <button
+                      onClick={() => handlePlay(song)}
+                      className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs transition-all ${
+                        playingId === song.id
+                          ? 'bg-emerald-500 text-white'
+                          : songPrimaryRef[song.id]
+                          ? 'bg-gray-900 text-white hover:bg-gray-700 dark:bg-gray-700/80'
+                          : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:bg-gray-800/80 dark:hover:bg-gray-700'
+                      }`}
+                      title={songPrimaryRef[song.id] ? 'Tocar pré-escuta' : 'Vincular música'}
+                    >
+                      {playingId === song.id ? '⏸' : '▶'}
+                    </button>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <button
+                          onClick={() => setDetailSongId(song.id)}
+                          className="min-w-0 text-left text-sm font-semibold leading-snug text-gray-900 transition-colors hover:text-blue-600 dark:text-gray-100"
+                          title="Ver detalhes"
+                        >
+                          {song.name}
+                        </button>
+                        {duration && (
+                          <span className="shrink-0 pt-0.5 font-mono text-[11px] tabular-nums text-gray-400 dark:text-gray-500">
+                            {fmtDuration(duration)}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-gray-400 dark:text-gray-500">
+                        <span><strong className="text-emerald-600 dark:text-emerald-300">{counts.full}</strong> Total</span>
+                        <span aria-hidden="true">·</span>
+                        <span><strong className="text-amber-600 dark:text-amber-300">{counts.partial}</strong> Parcial</span>
+                        <span aria-hidden="true">·</span>
+                        <span><strong className="text-gray-500 dark:text-gray-400">{counts.none}</strong> Nada</span>
+                      </div>
+
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {sortedMembers.map((member) => {
+                          const status = song.statuses[member.id] ?? 'none'
+                          const meta = STATUS_META[status]
+                          return (
+                            <span
+                              key={member.id}
+                              title={`${member.displayName}: ${meta.label}`}
+                              aria-label={`${member.displayName}: ${meta.label}`}
+                              className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2 py-1 text-[11px] text-gray-600 dark:border-gray-800 dark:bg-gray-950/70 dark:text-gray-300"
+                            >
+                              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: member.color }} />
+                              <span className="max-w-[4.5rem] truncate">{member.displayName}</span>
+                              <span className={`inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none ring-1 ring-inset ${meta.classes}`}>
+                                {meta.short}
+                              </span>
+                            </span>
+                          )
+                        })}
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        {currentMember && ownStatus && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] font-medium text-gray-400 dark:text-gray-500">Meu</span>
+                            <StatusBadge
+                              status={ownStatus}
+                              isOwn={true}
+                              onClick={() => cycleStatus(song.id, currentMember.id)}
+                            />
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] font-medium text-gray-400 dark:text-gray-500">Ens.</span>
+                          <StatusBadge
+                            status={song.rehearsed}
+                            isOwn={true}
+                            onClick={() => cycleRehearsed(song.id)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="shrink-0">
+                      {confirmDelete === song.id ? (
+                        <div className="flex flex-col items-end gap-1">
+                          <button
+                            onClick={() => deleteSong(song.id)}
+                            className="rounded bg-red-500 px-2 py-0.5 text-xs font-medium text-white transition-colors hover:bg-red-600"
+                          >
+                            Remover
+                          </button>
+                          <button
+                            onClick={() => setConfirmDelete(null)}
+                            className="text-xs text-gray-400 hover:text-gray-600"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDelete(song.id)}
+                          className="p-1 text-gray-300 transition-colors hover:text-red-400 dark:text-gray-500 dark:hover:text-red-400"
+                          title="Remover música"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+                            <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="hidden bg-white rounded-xl border border-gray-200 overflow-hidden dark:bg-gray-900/70 dark:border-gray-800 sm:block">
         <div className="overflow-x-auto scrollbar-none">
           <table className="w-full text-sm">
             <thead>
@@ -377,18 +541,6 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                     />
                   </th>
                 ))}
-                {/* Mobile: show only current member column */}
-                {currentMember && (
-                  <th
-                    className="text-center px-2 py-3 font-medium whitespace-nowrap sm:hidden"
-                    style={{ color: currentMember.color }}
-                  >
-                    <span
-                      className="w-3 h-3 rounded-full block mx-auto"
-                      style={{ backgroundColor: currentMember.color }}
-                    />
-                  </th>
-                )}
                 <th className="text-center px-2 py-3 font-medium text-gray-500 whitespace-nowrap dark:text-gray-400">
                   <span className="hidden sm:inline">Ensaiado</span>
                   <span className="sm:hidden">Ens.</span>
@@ -454,16 +606,6 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                         </td>
                       )
                     })}
-                    {/* Mobile: only current member */}
-                    {currentMember && (
-                      <td className="text-center px-2 py-3 sm:hidden">
-                        <StatusBadge
-                          status={song.statuses[currentMember.id] ?? 'none'}
-                          isOwn={true}
-                          onClick={() => cycleStatus(song.id, currentMember.id)}
-                        />
-                      </td>
-                    )}
                     <td className="text-center px-2 py-3">
                       <StatusBadge
                         status={song.rehearsed}

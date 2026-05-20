@@ -340,16 +340,16 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar..."
-          className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white flex-1 min-w-0 sm:flex-none sm:w-40 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100 dark:placeholder-gray-600"
+          className="party-input min-w-0 flex-1 px-3 py-1.5 sm:w-40 sm:flex-none"
         />
 
-        <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5 dark:bg-gray-800">
+        <div className="party-segment">
           {(['all', 'none', 'partial', 'full'] as const).map((v) => (
             <button
               key={v}
               onClick={() => setFilterRehearsed(v)}
               className={`text-xs px-2 py-1 rounded-md transition-colors font-medium ${
-                filterRehearsed === v ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                filterRehearsed === v ? 'party-segment-item party-segment-item-active' : 'party-segment-item hover:text-white'
               }`}
             >
               {v === 'all' ? 'Todas' : v === 'none' ? '—' : v === 'partial' ? 'Parcial' : 'Total'}
@@ -358,13 +358,13 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
         </div>
 
         {currentMember && (
-          <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5 dark:bg-gray-800">
+          <div className="party-segment">
             {(['all', 'none', 'partial', 'full'] as const).map((v) => (
               <button
                 key={v}
                 onClick={() => setFilterMine(v)}
                 className={`text-xs px-2 py-1 rounded-md transition-colors font-medium ${
-                  filterMine === v ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                  filterMine === v ? 'party-segment-item party-segment-item-active' : 'party-segment-item hover:text-white'
                 }`}
                 title="Meu aprendizado"
               >
@@ -377,7 +377,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
         {(search || filterRehearsed !== 'all' || filterMine !== 'all') && (
           <button
             onClick={() => { setSearch(''); setFilterRehearsed('all'); setFilterMine('all') }}
-            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-xs font-bold text-cyan-200 transition-colors hover:text-white"
           >
             Limpar
           </button>
@@ -386,11 +386,11 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
 
       <div className="sm:hidden">
         {loading ? (
-          <div className="rounded-xl border border-gray-200 bg-white py-8 dark:border-gray-800 dark:bg-gray-900/70">
+          <div className="party-card py-8">
             <div className="mx-auto h-5 w-5 animate-spin rounded-full border-2 border-gray-200 border-t-gray-500" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="rounded-xl border border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-400 dark:border-gray-800 dark:bg-gray-900/70">
+          <div className="party-card px-4 py-10 text-center text-sm text-indigo-200">
             {search ? 'Nenhuma música encontrada.' : 'Nenhuma música adicionada ainda.'}
           </div>
         ) : (
@@ -401,7 +401,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
               const duration = songPrimaryRef[song.id]?.durationMs
 
               return (
-                <article key={song.id} className="rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900/70">
+                <article key={song.id} className="party-card p-3">
                   <div className="flex items-start gap-2">
                     <button
                       onClick={() => handlePlay(song)}
@@ -409,8 +409,8 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                         playingId === song.id
                           ? 'bg-emerald-500 text-white'
                           : songPrimaryRef[song.id]
-                          ? 'bg-gray-900 text-white hover:bg-gray-700 dark:bg-gray-700/80'
-                          : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:bg-gray-800/80 dark:hover:bg-gray-700'
+                          ? 'bg-cyan-400 text-gray-950 hover:bg-cyan-300'
+                          : 'bg-white/10 text-indigo-200 hover:bg-white/15 hover:text-white'
                       }`}
                       title={songPrimaryRef[song.id] ? 'Tocar pré-escuta' : 'Vincular música'}
                     >
@@ -421,19 +421,19 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                       <div className="flex items-start justify-between gap-2">
                         <button
                           onClick={() => setDetailSongId(song.id)}
-                          className="min-w-0 text-left text-sm font-semibold leading-snug text-gray-900 transition-colors hover:text-blue-600 dark:text-gray-100"
+                          className="min-w-0 text-left text-sm font-black leading-snug text-white transition-colors hover:text-yellow-200"
                           title="Ver detalhes"
                         >
                           {song.name}
                         </button>
                         {duration && (
-                          <span className="shrink-0 pt-0.5 font-mono text-[11px] tabular-nums text-gray-400 dark:text-gray-500">
+                          <span className="party-subtle shrink-0 pt-0.5 font-mono text-[11px] tabular-nums">
                             {fmtDuration(duration)}
                           </span>
                         )}
                       </div>
 
-                      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-gray-400 dark:text-gray-500">
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-indigo-200/75">
                         <span><strong className="text-emerald-600 dark:text-emerald-300">{counts.full}</strong> Total</span>
                         <span aria-hidden="true">·</span>
                         <span><strong className="text-amber-600 dark:text-amber-300">{counts.partial}</strong> Parcial</span>
@@ -450,7 +450,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                               key={member.id}
                               title={`${member.displayName}: ${meta.label}`}
                               aria-label={`${member.displayName}: ${meta.label}`}
-                              className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2 py-1 text-[11px] text-gray-600 dark:border-gray-800 dark:bg-gray-950/70 dark:text-gray-300"
+                              className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-white/10 bg-black/20 px-2 py-1 text-[11px] text-indigo-100"
                             >
                               <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: member.color }} />
                               <span className="max-w-[4.5rem] truncate">{member.displayName}</span>
@@ -465,7 +465,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                       <div className="mt-3 flex flex-wrap items-center gap-2">
                         {currentMember && ownStatus && (
                           <div className="flex items-center gap-1.5">
-                            <span className="text-[11px] font-medium text-gray-400 dark:text-gray-500">Meu</span>
+                            <span className="text-[11px] font-black text-indigo-200/75">Meu</span>
                             <StatusBadge
                               status={ownStatus}
                               isOwn={true}
@@ -474,7 +474,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                           </div>
                         )}
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[11px] font-medium text-gray-400 dark:text-gray-500">Ens.</span>
+                          <span className="text-[11px] font-black text-indigo-200/75">Ens.</span>
                           <StatusBadge
                             status={song.rehearsed}
                             isOwn={true}
@@ -520,13 +520,13 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
         )}
       </div>
 
-      <div className="hidden bg-white rounded-xl border border-gray-200 overflow-hidden dark:bg-gray-900/70 dark:border-gray-800 sm:block">
+      <div className="party-card hidden overflow-hidden p-0 sm:block">
         <div className="overflow-x-auto scrollbar-none">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50 dark:border-gray-800 dark:bg-gray-900">
+              <tr className="border-b border-white/10 bg-black/18">
                 <th className="w-10" />
-                <th className="text-left px-4 py-3 font-medium text-gray-500 min-w-[140px] dark:text-gray-400">Música</th>
+                <th className="min-w-[140px] px-4 py-3 text-left font-black text-indigo-100">Música</th>
                 {sortedMembers.map((m) => (
                   <th
                     key={m.id}
@@ -541,11 +541,11 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                     />
                   </th>
                 ))}
-                <th className="text-center px-2 py-3 font-medium text-gray-500 whitespace-nowrap dark:text-gray-400">
+                <th className="px-2 py-3 text-center font-black text-indigo-100 whitespace-nowrap">
                   <span className="hidden sm:inline">Ensaiado</span>
                   <span className="sm:hidden">Ens.</span>
                 </th>
-                <th className="text-right px-3 py-3 font-medium text-gray-500 whitespace-nowrap hidden sm:table-cell dark:text-gray-400">Duração</th>
+                <th className="hidden px-3 py-3 text-right font-black text-indigo-100 whitespace-nowrap sm:table-cell">Duração</th>
                 <th className="w-8" />
               </tr>
             </thead>
@@ -568,7 +568,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                 filtered.map((song) => (
                   <tr
                     key={song.id}
-                    className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors last:border-b-0 dark:border-gray-800/80 dark:hover:bg-gray-800/40"
+                    className="border-b border-white/10 transition-colors last:border-b-0 hover:bg-white/6"
                   >
                     <td className="px-2 py-3 w-10 text-center">
                       <button
@@ -577,8 +577,8 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                           playingId === song.id
                             ? 'bg-emerald-500 text-white'
                             : songPrimaryRef[song.id]
-                            ? 'bg-gray-900 dark:bg-gray-700/80 text-white hover:bg-gray-700'
-                            : 'bg-gray-100 dark:bg-gray-800/80 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-600'
+                            ? 'bg-cyan-400 text-gray-950 hover:bg-cyan-300'
+                            : 'bg-white/10 text-indigo-200 hover:bg-white/15 hover:text-white'
                         }`}
                         title={songPrimaryRef[song.id] ? 'Tocar pré-escuta' : 'Vincular música'}
                       >
@@ -588,7 +588,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                     <td className="px-3 py-3">
                       <button
                         onClick={() => setDetailSongId(song.id)}
-                        className="font-medium text-gray-900 hover:text-blue-600 text-left transition-colors dark:text-gray-100 leading-snug"
+                        className="text-left font-black leading-snug text-white transition-colors hover:text-yellow-200"
                         title="Ver detalhes"
                       >
                         {song.name}
@@ -660,9 +660,9 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
 
       {songsWithDuration > 0 && (
         <div className="mt-2 flex justify-end px-1">
-          <span className="text-xs text-gray-400 dark:text-gray-500">
+            <span className="party-subtle text-xs">
             {songsWithDuration < filtered.length && `${songsWithDuration}/${filtered.length} com duração · `}
-            Total: <span className="font-semibold text-gray-600 dark:text-gray-300 font-mono tabular-nums">{fmtDuration(totalDurationMs)}</span>
+            Total: <span className="font-mono font-black tabular-nums text-white">{fmtDuration(totalDurationMs)}</span>
           </span>
         </div>
       )}
@@ -671,7 +671,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
         {currentMember && (
           <button
             onClick={() => setShowModal(true)}
-            className="mt-4 px-4 py-2.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+            className="party-button mt-4"
           >
             + Adicionar música
           </button>
@@ -679,14 +679,14 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
         {currentMember && (
           <button
             onClick={() => setAddingFromSearch(true)}
-            className="mt-4 px-4 py-2.5 text-sm font-medium text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors dark:text-emerald-300 dark:bg-emerald-950/40 dark:hover:bg-emerald-950/70"
+            className="party-button-secondary mt-4"
           >
             Buscar e adicionar
           </button>
         )}
         <button
           onClick={printSetlist}
-          className="mt-4 px-4 py-2.5 text-sm font-medium text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors dark:bg-gray-900 dark:border-gray-800 dark:hover:bg-gray-800"
+          className="party-button-secondary mt-4"
         >
           Exportar setlist
         </button>

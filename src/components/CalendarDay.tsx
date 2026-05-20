@@ -32,9 +32,9 @@ export default function CalendarDay({
   const getTint = () => {
     if (isPast || dayAvailability.length === 0) return ''
     if (availableCount === totalMembers && totalMembers > 0)
-      return 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/50'
+      return 'bg-cyan-300/18 border-cyan-300/50'
     if (availableCount === 0 && dayAvailability.length > 0)
-      return 'bg-red-50/50 border-red-100 dark:bg-red-900/10 dark:border-red-900/30'
+      return 'bg-pink-500/12 border-pink-400/35'
     return ''
   }
 
@@ -52,15 +52,15 @@ export default function CalendarDay({
       disabled={isPast || !canInteract}
       className={`relative flex flex-col items-start p-1.5 sm:p-2 min-h-[68px] sm:min-h-[78px] rounded-lg border transition-colors text-left w-full ${
         isPast
-          ? 'bg-gray-50 border-gray-100 opacity-40 cursor-default dark:bg-gray-800/30 dark:border-gray-800'
+          ? 'bg-black/20 border-white/5 opacity-40 cursor-default'
           : tint
           ? `${tint} ${canInteract ? 'hover:brightness-95 dark:hover:brightness-110 cursor-pointer' : ''}`
-          : `bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-700/60 ${canInteract ? 'hover:border-gray-300 hover:shadow-sm dark:hover:border-gray-600 cursor-pointer' : ''}`
-      } ${isToday ? 'ring-2 ring-blue-400 ring-offset-1 dark:ring-offset-gray-950' : ''}`}
+          : `bg-black/24 border-white/10 ${canInteract ? 'hover:border-cyan-200/50 hover:bg-white/8 cursor-pointer' : ''}`
+      } ${isToday ? 'ring-2 ring-yellow-300 ring-offset-2 ring-offset-[#080914]' : ''}`}
     >
       <span
         className={`text-xs font-medium leading-none ${
-          isToday ? 'text-blue-500 dark:text-blue-400' : isPast ? 'text-gray-400 dark:text-gray-600' : 'text-gray-600 dark:text-gray-300'
+          isToday ? 'text-yellow-200' : isPast ? 'text-indigo-200/35' : 'text-indigo-100'
         }`}
       >
         {date.getDate()}
@@ -81,6 +81,7 @@ export default function CalendarDay({
                 backgroundColor: isAvailable ? member.color : `${member.color}44`,
                 fontSize: '8px',
                 fontWeight: 700,
+                boxShadow: '0 2px 0 rgba(0,0,0,.35)',
               }}
               title={`${member.displayName}: ${isAvailable ? 'disponível' : 'indisponível'}`}
             >
@@ -92,7 +93,7 @@ export default function CalendarDay({
 
       {/* "All free" indicator */}
       {availableCount === totalMembers && totalMembers > 1 && !isPast && (
-        <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-emerald-500" title="Todos disponíveis" />
+        <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-yellow-300 shadow-[0_2px_0_rgba(0,0,0,0.35)]" title="Todos disponíveis" />
       )}
     </button>
   )

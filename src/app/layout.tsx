@@ -30,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="theme-color" content="#030712" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
-      <body className="bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100 min-h-screen">
+      <body className="party-bg min-h-screen text-gray-100">
         <ErrorBoundary>
           <SessionProviderWrapper>
             <SessionSaver />

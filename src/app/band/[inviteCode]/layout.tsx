@@ -122,7 +122,7 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#080d16]">
+      <div className="party-bg min-h-screen flex items-center justify-center">
         <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
       </div>
     )
@@ -137,8 +137,8 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
   const joinLabel = isAdmin ? 'Escolher slot' : 'Entrar na banda'
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#080d16]">
-      <header className="bg-white border-b border-gray-200 dark:bg-[#111827]/95 dark:border-gray-800 sticky top-0 z-10">
+    <div className="party-bg min-h-screen">
+      <header className="party-topbar">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-2 min-w-0">
@@ -147,7 +147,7 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
                   <path fillRule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z" clipRule="evenodd" />
                 </svg>
               </Link>
-              <span className="font-bold tracking-tight truncate dark:text-gray-100">{band.name}</span>
+              <span className="party-title truncate text-base">{band.name}</span>
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
@@ -156,7 +156,7 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
                   <button
                     onClick={handleInstall}
                     title="Instalar aplicativo"
-                    className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors"
+                    className="party-button-secondary flex items-center gap-1.5 px-2.5 py-1.5 text-xs"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 256 256">
                       <path d="M240,136v64a16,16,0,0,1-16,16H32a16,16,0,0,1-16-16V136a16,16,0,0,1,16-16H80a8,8,0,0,1,0,16H32v64H224V136H176a8,8,0,0,1,0-16h48A16,16,0,0,1,240,136Zm-117.66-2.34a8,8,0,0,0,11.32,0l48-48a8,8,0,0,0-11.32-11.32L136,108.69V32a8,8,0,0,0-16,0v76.69L85.66,74.34A8,8,0,0,0,74.34,85.66Z"/>
@@ -187,31 +187,31 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
                       onKeyDown={(e) => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') setEditingName(false) }}
                       maxLength={30}
                       disabled={savingName}
-                      className="w-32 text-sm px-2 py-0.5 rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-900"
+                      className="party-input w-32 px-2 py-1 text-sm"
                     />
                     {suggestAccountName && (
                       <button
                         onClick={() => setNameValue(sessionName)}
-                        className="text-xs text-blue-600 hover:text-blue-800 whitespace-nowrap"
+                        className="whitespace-nowrap text-xs font-bold text-cyan-200 hover:text-white"
                         title="Usar nome da sua conta"
                       >
                         Usar "{sessionName}"
                       </button>
                     )}
-                    <button onClick={saveName} disabled={savingName} className="text-xs text-emerald-600 hover:text-emerald-800 font-medium">✓</button>
-                    <button onClick={() => setEditingName(false)} className="text-xs text-gray-400 hover:text-gray-600">✕</button>
+                    <button onClick={saveName} disabled={savingName} className="text-xs font-black text-emerald-300 hover:text-white">✓</button>
+                    <button onClick={() => setEditingName(false)} className="text-xs text-pink-300 hover:text-white">✕</button>
                   </div>
                 ) : (
-                  <button onClick={startEdit} className="flex items-center gap-2 group min-w-0" title="Alterar seu nome na banda" aria-label={`Alterar seu nome na banda: ${currentMember.displayName}`}>
+                  <button onClick={startEdit} className="group flex min-w-0 items-center gap-2 rounded-full bg-white/10 px-2.5 py-1 text-white ring-1 ring-white/10" title="Alterar seu nome na banda" aria-label={`Alterar seu nome na banda: ${currentMember.displayName}`}>
                     <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: currentMember.color }} />
                     <span className="text-sm font-medium block max-w-[7rem] truncate">{currentMember.displayName}</span>
-                    <span className="text-gray-400 group-hover:text-gray-600 text-xs transition-colors">✎</span>
+                    <span className="text-cyan-200 transition-colors group-hover:text-white text-xs">✎</span>
                   </button>
                 )
               ) : (
                 <Link
                   href={`/join/${inviteCode}`}
-                  className="text-xs px-3 py-1.5 bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  className="party-button px-3 py-1.5 text-xs"
                 >
                   {joinLabel}
                 </Link>
@@ -226,10 +226,10 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
                 <Link
                   key={tab.href}
                   href={tab.href}
-                  className={`px-3 sm:px-4 py-2.5 text-sm font-medium whitespace-nowrap rounded-t-lg transition-colors ${
+                  className={`whitespace-nowrap ${
                     isActive
-                      ? 'bg-gray-50 text-gray-900 border border-gray-200 border-b-gray-50 -mb-px dark:bg-[#080d16] dark:text-gray-100 dark:border-gray-800 dark:border-b-[#080d16]'
-                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300'
+                      ? 'party-tab party-tab-active'
+                      : 'party-tab hover:text-white'
                   }`}
                 >
                   {tab.label}
@@ -242,10 +242,10 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
 
       {/* Guest/admin slot banner */}
       {!currentMember && isAdmin && (
-        <div className="border-b border-blue-100 bg-blue-50 px-4 py-2.5 text-center dark:border-gray-800 dark:bg-[#0c1626]">
-          <p className="text-xs text-blue-800 dark:text-gray-300">
+        <div className="border-b border-white/10 bg-cyan-400/12 px-4 py-2.5 text-center">
+          <p className="text-xs text-cyan-50">
             Você administra esta banda.{' '}
-            <Link href={`/join/${inviteCode}`} className="font-semibold text-blue-700 underline dark:text-blue-300">
+            <Link href={`/join/${inviteCode}`} className="font-black text-yellow-200 underline">
               Escolha seu slot para participar dos ensaios e músicas →
             </Link>
           </p>
@@ -253,10 +253,10 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
       )}
 
       {!currentMember && !isAdmin && (
-        <div className="border-b border-amber-100 bg-amber-50 px-4 py-2.5 text-center dark:border-gray-800 dark:bg-[#121827]">
-          <p className="text-xs text-amber-800 dark:text-gray-300">
+        <div className="border-b border-white/10 bg-yellow-300/12 px-4 py-2.5 text-center">
+          <p className="text-xs text-yellow-50">
             Você está visualizando como <strong>convidado</strong>.{' '}
-            <Link href={`/join/${inviteCode}`} className="font-semibold text-amber-700 underline dark:text-amber-300">
+            <Link href={`/join/${inviteCode}`} className="font-black text-yellow-200 underline">
               Escolha seu slot para interagir →
             </Link>
           </p>
@@ -265,10 +265,10 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
 
       {/* Nudge: member but no account */}
       {currentMember && !session?.user && (
-        <div className="border-b border-blue-100 bg-blue-50 px-4 py-2.5 text-center dark:border-gray-800 dark:bg-[#0c1626]">
-          <p className="text-xs text-blue-800 dark:text-gray-300">
+        <div className="border-b border-white/10 bg-cyan-400/12 px-4 py-2.5 text-center">
+          <p className="text-xs text-cyan-50">
             Você está como <strong>{currentMember.displayName}</strong> neste dispositivo.{' '}
-            <Link href="/auth/register" className="font-semibold text-blue-700 underline dark:text-blue-300">
+            <Link href="/auth/register" className="font-black text-cyan-200 underline">
               Crie uma conta para acessar de qualquer lugar →
             </Link>
           </p>
@@ -283,7 +283,7 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
         </BandContext.Provider>
       </main>
 
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-gray-200 bg-white/95 backdrop-blur dark:border-gray-800 dark:bg-[#111827]/95" aria-label="Seções principais">
+      <nav className="party-bottom-nav sm:hidden fixed bottom-0 left-0 right-0 z-30 border-t backdrop-blur" aria-label="Seções principais">
         <div className="grid grid-cols-5">
           {mobileTabs.map((tab) => {
             const isActive = pathname === tab.href
@@ -293,11 +293,11 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
                 href={tab.href}
                 className={`flex min-h-14 items-center justify-center px-1 text-[11px] font-semibold transition-colors ${
                   isActive
-                    ? 'text-gray-950 dark:text-white'
-                    : 'text-gray-500 hover:text-gray-800 dark:text-gray-500 dark:hover:text-gray-200'
+                    ? 'text-gray-950'
+                    : 'text-indigo-200/70 hover:text-white'
                 }`}
               >
-                <span className={`rounded-full px-2.5 py-1 ${isActive ? 'bg-gray-100 dark:bg-gray-800' : ''}`}>
+                <span className={`rounded-full px-2.5 py-1 ${isActive ? 'bg-yellow-300 shadow-[0_3px_0_rgba(0,0,0,0.35)]' : ''}`}>
                   {tab.label}
                 </span>
               </Link>

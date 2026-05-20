@@ -224,23 +224,23 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#080d16]">
+    <div className="party-bg min-h-screen">
       {showLogoutModal && (
         <LogoutModal
           onCancel={() => setShowLogoutModal(false)}
           onConfirm={() => signOut({ callbackUrl: '/' })}
         />
       )}
-      <header className="bg-white border-b border-gray-200 dark:bg-[#111827]/95 dark:border-gray-800 sticky top-0 z-10">
+      <header className="party-topbar">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xl">🎸</span>
-            <span className="font-bold tracking-tight text-lg">ReHorse</span>
+            <span className="party-title text-lg">ReHorse</span>
           </div>
           <div className="flex items-center gap-4">
             <ThemeToggle />
-            <Link href="/perfil" className="text-sm text-gray-500 hover:text-gray-800 hidden sm:block transition-colors">{session?.user?.name}</Link>
-            <button onClick={() => setShowLogoutModal(true)} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+            <Link href="/perfil" className="hidden text-sm font-bold text-cyan-100 transition-colors hover:text-white sm:block">{session?.user?.name}</Link>
+            <button onClick={() => setShowLogoutModal(true)} className="text-xs font-bold text-indigo-200/70 transition-colors hover:text-white">
               Sair
             </button>
           </div>
@@ -249,8 +249,8 @@ export default function DashboardPage() {
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold">Minhas bandas</h2>
-          <Link href="/dashboard/create" className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white transition-colors">
+          <h2 className="party-title text-2xl">Minhas bandas</h2>
+          <Link href="/dashboard/create" className="party-button">
             + Nova banda
           </Link>
         </div>
@@ -282,12 +282,12 @@ export default function DashboardPage() {
             value={joinCode}
             onChange={(e) => setJoinCode(e.target.value)}
             placeholder="Entrar por código de convite"
-            className="flex-1 px-4 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white dark:bg-[#111827] dark:border-gray-700/80 dark:text-gray-100 dark:placeholder-gray-500"
+            className="party-input flex-1"
           />
           <button
             type="submit"
             disabled={!joinCode.trim()}
-            className="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600"
+            className="party-button-secondary"
           >
             Entrar
           </button>
@@ -295,28 +295,28 @@ export default function DashboardPage() {
 
         {loading ? (
           <div className="space-y-3">
-            {[1, 2].map((i) => <div key={i} className="h-24 bg-white rounded-xl border border-gray-200 animate-pulse dark:bg-[#111827] dark:border-gray-800" />)}
+            {[1, 2].map((i) => <div key={i} className="party-card h-24 animate-pulse" />)}
           </div>
         ) : bandList.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
+          <div className="party-card text-center py-16 text-indigo-100">
             <p className="text-5xl mb-4">🎵</p>
             <p className="text-sm">Você ainda não tem nenhuma banda.</p>
-            <Link href="/dashboard/create" className="mt-4 inline-block text-sm text-blue-600 hover:underline">
+            <Link href="/dashboard/create" className="mt-4 inline-block text-sm font-black text-yellow-200 hover:underline">
               Criar sua primeira banda →
             </Link>
           </div>
         ) : (
           <div className="space-y-3">
             {bandList.map((band) => (
-              <div key={band.id} className="bg-white border border-gray-200 dark:bg-[#111827] dark:border-gray-800 rounded-lg p-4 flex items-center justify-between gap-4 shadow-sm dark:shadow-none">
+              <div key={band.id} className="party-card flex items-center justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="font-semibold truncate dark:text-gray-100">{band.name}</span>
+                    <span className="truncate text-base font-black text-white">{band.name}</span>
                     {band.role === 'admin' && (
-                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0 dark:bg-gray-800 dark:text-gray-300">admin</span>
+                      <span className="shrink-0 rounded-full bg-cyan-300 px-2 py-0.5 text-[10px] font-black text-gray-950">admin</span>
                     )}
                     {band.role === 'local' && (
-                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 shrink-0" title="Entre pela página do convite para vincular ao seu perfil">
+                      <span className="shrink-0 rounded-full bg-yellow-300 px-2 py-0.5 text-[10px] font-black text-gray-950" title="Entre pela página do convite para vincular ao seu perfil">
                         convite local
                       </span>
                     )}
@@ -324,18 +324,18 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-2">
                     <div className="flex -space-x-1">
                       {band.members.slice(0, 8).map((m) => (
-                        <span key={m.id} className="w-5 h-5 rounded-full border-2 border-white dark:border-[#111827]" style={{ backgroundColor: m.color }} title={m.displayName} />
+                        <span key={m.id} className="h-5 w-5 rounded-full border-2 border-white shadow-[0_2px_0_rgba(0,0,0,0.45)]" style={{ backgroundColor: m.color }} title={m.displayName} />
                       ))}
                     </div>
-                    <span className="text-xs text-gray-400 dark:text-gray-500">{band.members.length} membro{band.members.length !== 1 ? 's' : ''}</span>
+                    <span className="party-subtle text-xs">{band.members.length} membro{band.members.length !== 1 ? 's' : ''}</span>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <button onClick={() => copyLink(band.inviteCode)} className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
+                  <button onClick={() => copyLink(band.inviteCode)} className="party-button-secondary px-3 py-1.5 text-xs">
                     {copied === band.inviteCode ? '✓ Copiado' : 'Copiar link'}
                   </button>
-                  <Link href={`/band/${band.inviteCode}/rehearsals`} className="text-xs px-3 py-1.5 rounded-lg bg-gray-900 text-white hover:bg-gray-700 transition-colors dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white">
+                  <Link href={`/band/${band.inviteCode}/rehearsals`} className="party-button px-3 py-1.5 text-xs">
                     Abrir
                   </Link>
                 </div>

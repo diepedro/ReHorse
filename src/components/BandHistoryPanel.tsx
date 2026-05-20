@@ -48,24 +48,24 @@ export default function BandHistoryPanel({
   const visible = useMemo(() => events.slice(0, 30), [events])
 
   return (
-    <section className="mt-6 border-t border-gray-200 pt-4 dark:border-gray-800">
+    <section className="mt-6 border-t border-white/10 pt-4">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 text-left text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+        className="party-card flex w-full items-center justify-between py-3 text-left text-sm font-black text-white"
       >
         <span>{title}</span>
-        <span className="text-xs text-gray-400">{open ? 'Ocultar' : 'Ver historico'}</span>
+        <span className="party-subtle text-xs">{open ? 'Ocultar' : 'Ver historico'}</span>
       </button>
 
       {open && (
         <div className="mt-3 space-y-2">
           {loading ? (
-            <div className="rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-400 dark:border-gray-800 dark:bg-gray-900">
+            <div className="party-card text-sm text-indigo-200">
               Carregando historico...
             </div>
           ) : visible.length === 0 ? (
-            <div className="rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-400 dark:border-gray-800 dark:bg-gray-900">
+            <div className="party-card text-sm text-indigo-200">
               Nenhum registro ainda.
             </div>
           ) : (
@@ -79,20 +79,20 @@ export default function BandHistoryPanel({
 
 function HistoryItem({ event }: { event: BandHistoryEvent }) {
   return (
-    <article className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900">
+    <article className="party-card-soft p-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          <p className="text-sm font-black text-white">
             {TYPE_LABEL[event.type] ?? event.type}
           </p>
-          <p className="mt-0.5 truncate text-sm text-gray-600 dark:text-gray-300">
+          <p className="mt-0.5 truncate text-sm text-indigo-100">
             {event.subjectName ?? 'Sem titulo'}
           </p>
-          <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+          <p className="party-subtle mt-1 text-xs">
             {event.actorName ? `por ${event.actorName}` : 'sem autor registrado'}
           </p>
         </div>
-        <time className="shrink-0 text-xs text-gray-400 dark:text-gray-500">
+        <time className="party-subtle shrink-0 text-xs">
           {new Date(event.createdAt).toLocaleString('pt-BR', {
             day: '2-digit',
             month: '2-digit',
@@ -111,10 +111,10 @@ function EventDetails({ details }: { details: Record<string, unknown> }) {
   if (entries.length === 0) return null
 
   return (
-    <dl className="mt-2 grid gap-2 text-xs text-gray-500 dark:text-gray-400 sm:grid-cols-2">
+    <dl className="mt-2 grid gap-2 text-xs text-indigo-100/80 sm:grid-cols-2">
       {entries.map(([key, value]) => (
-        <div key={key} className="rounded-md bg-gray-50 px-2.5 py-2 dark:bg-gray-950">
-          <dt className="font-medium text-gray-400">{labelKey(key)}</dt>
+        <div key={key} className="rounded-md bg-black/24 px-2.5 py-2">
+          <dt className="font-black text-indigo-200/70">{labelKey(key)}</dt>
           <dd className="mt-0.5 break-words">{formatValue(key, value)}</dd>
         </div>
       ))}

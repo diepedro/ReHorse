@@ -9,6 +9,12 @@ html {
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   overscroll-behavior: none;
+  background:
+    radial-gradient(circle at 10% 6%, rgba(0, 245, 212, 0.14), transparent 28rem),
+    radial-gradient(circle at 88% 10%, rgba(255, 0, 110, 0.16), transparent 26rem),
+    radial-gradient(circle at 18% 70%, rgba(255, 214, 10, 0.08), transparent 24rem),
+    radial-gradient(circle at 60% 96%, rgba(0, 245, 212, 0.14), transparent 30rem),
+    #080914;
 }
 
 /* Hide scrollbars while keeping scroll functionality */
@@ -27,5 +33,127 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .page-enter {
     animation: none;
+  }
+}
+
+@layer components {
+  .party-bg {
+    background:
+      radial-gradient(circle at 10% 6%, rgba(0, 245, 212, 0.15), transparent 22rem),
+      radial-gradient(circle at 88% 12%, rgba(255, 0, 110, 0.18), transparent 24rem),
+      radial-gradient(circle at 16% 76%, rgba(255, 214, 10, 0.08), transparent 24rem),
+      radial-gradient(circle at 50% 100%, rgba(0, 245, 212, 0.12), transparent 28rem),
+      linear-gradient(180deg, #111327 0%, #080914 46%, #070711 100%);
+  }
+
+  .party-topbar {
+    @apply border-b sticky top-0 z-10 backdrop-blur;
+    background: rgba(17, 19, 39, 0.92);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 10px 0 rgba(0, 0, 0, 0.18);
+  }
+
+  .party-card {
+    @apply rounded-xl border p-4 transition-colors;
+    background: linear-gradient(180deg, rgba(25, 28, 55, 0.96), rgba(15, 17, 36, 0.96));
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: 0 10px 0 rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .party-card-soft {
+    @apply rounded-xl border p-4;
+    background: rgba(18, 21, 43, 0.72);
+    border-color: rgba(255, 255, 255, 0.11);
+  }
+
+  .party-title {
+    @apply font-black tracking-tight text-white;
+    text-shadow: 0 3px 0 rgba(0, 0, 0, 0.55);
+  }
+
+  .party-subtle {
+    color: #aab1d6;
+  }
+
+  .party-button {
+    @apply rounded-lg px-4 py-2 text-sm font-black text-gray-950 transition-transform active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45;
+    background: linear-gradient(180deg, #ffdf3d, #ff9f1c);
+    border: 2px solid rgba(255, 255, 255, 0.78);
+    box-shadow: 0 5px 0 #7c2d12;
+  }
+
+  .party-button:hover {
+    transform: translateY(-1px);
+  }
+
+  .party-button-secondary {
+    @apply rounded-lg px-4 py-2 text-sm font-bold text-white transition-transform active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45;
+    background: linear-gradient(180deg, #1d2550, #111936);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.45);
+  }
+
+  .party-input {
+    @apply rounded-lg px-4 py-2 text-sm text-white outline-none;
+    background: rgba(5, 7, 18, 0.62);
+    border: 2px solid rgba(255, 255, 255, 0.16);
+  }
+
+  .party-input:focus {
+    border-color: #00f5d4;
+    box-shadow: 0 0 0 3px rgba(0, 245, 212, 0.2);
+  }
+
+  .party-segment {
+    @apply inline-flex items-center gap-1 rounded-xl p-1;
+    background: rgba(3, 5, 14, 0.46);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .party-segment-item {
+    @apply rounded-lg px-2.5 py-1 text-xs font-black transition-colors;
+    color: #aab1d6;
+  }
+
+  .party-segment-item-active {
+    color: #111827;
+    background: linear-gradient(180deg, #ffffff, #ffd60a);
+    box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+  }
+
+  .party-tab {
+    @apply rounded-t-xl px-3 py-2.5 text-sm font-black transition-colors;
+    color: #aab1d6;
+  }
+
+  .party-tab-active {
+    color: #111827;
+    background: linear-gradient(180deg, #00f5d4, #4cc9f0);
+    border: 2px solid rgba(255, 255, 255, 0.78);
+    border-bottom: 0;
+    box-shadow: 0 -2px 0 rgba(255, 255, 255, 0.18) inset;
+  }
+
+  .party-bottom-nav {
+    background: rgba(17, 19, 39, 0.96);
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: 0 -8px 0 rgba(0, 0, 0, 0.28);
+  }
+
+  .party-status {
+    @apply font-black;
+    border-width: 2px;
+    box-shadow: 0 3px 0 rgba(0, 0, 0, 0.24);
+  }
+
+  .party-progress-track {
+    @apply h-4 overflow-hidden rounded-full;
+    background: rgba(3, 5, 14, 0.58);
+    border: 2px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .party-progress-fill {
+    @apply h-full rounded-full transition-all duration-500;
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.32);
   }
 }

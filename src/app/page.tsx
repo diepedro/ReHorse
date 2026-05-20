@@ -44,22 +44,22 @@ export default function LandingPage() {
 
   if (!ready || status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-950">
+      <div className="party-bg flex min-h-screen items-center justify-center">
         <div className="w-6 h-6 border-2 border-gray-700 border-t-gray-300 rounded-full animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950 px-4">
+    <div className="party-bg flex min-h-screen flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-10">
         {/* Brand */}
         <div className="text-center">
           <div className="inline-flex items-center gap-3 mb-4">
             <span className="text-4xl">🎸</span>
-            <h1 className="text-4xl font-bold tracking-tight text-white">ReHorse</h1>
+            <h1 className="party-title text-5xl">ReHorse</h1>
           </div>
-          <p className="text-gray-400 text-sm">Coordene ensaios, músicas e disponibilidade da banda.</p>
+          <p className="party-subtle text-sm">Coordene ensaios, músicas e disponibilidade da banda.</p>
         </div>
 
         <div className="space-y-4">
@@ -70,10 +70,10 @@ export default function LandingPage() {
                 <button
                   key={b.inviteCode}
                   onClick={() => router.push(`/band/${b.inviteCode}/rehearsals`)}
-                  className="block w-full text-left px-5 py-3.5 rounded-xl bg-gray-800 border border-gray-700 hover:border-gray-500 transition-colors"
+                  className="party-card block w-full text-left px-5 py-3.5"
                 >
-                  <p className="text-xs text-gray-500 mb-0.5">{i === 0 ? 'Continuar como' : 'Também entrar como'}</p>
-                  <p className="text-white font-semibold text-sm">
+                  <p className="party-subtle mb-0.5 text-xs">{i === 0 ? 'Continuar como' : 'Também entrar como'}</p>
+                  <p className="text-sm font-black text-white">
                     {b.memberName ?? 'Visitante'} · {b.bandName}
                   </p>
                 </button>
@@ -85,7 +85,7 @@ export default function LandingPage() {
           {session?.user ? (
             <Link
               href="/dashboard"
-              className="block w-full text-center px-6 py-3.5 rounded-xl bg-white text-gray-900 font-semibold text-sm hover:bg-gray-100 transition-colors"
+              className="party-button block w-full text-center py-3.5"
             >
               Minhas bandas ({session.user.name})
             </Link>
@@ -93,13 +93,13 @@ export default function LandingPage() {
             <div className="flex gap-2">
               <Link
                 href="/auth/register"
-                className="flex-1 text-center px-4 py-3 rounded-xl bg-white text-gray-900 font-semibold text-sm hover:bg-gray-100 transition-colors"
+                className="party-button flex-1 text-center py-3"
               >
                 Criar conta
               </Link>
               <Link
                 href="/auth/signin"
-                className="flex-1 text-center px-4 py-3 rounded-xl border border-gray-700 text-gray-300 text-sm hover:border-gray-500 hover:text-white transition-colors"
+                className="party-button-secondary flex-1 text-center py-3"
               >
                 Entrar
               </Link>
@@ -109,10 +109,10 @@ export default function LandingPage() {
           {/* Join via invite code */}
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-800" />
+              <div className="w-full border-t border-white/12" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-gray-950 px-3 text-gray-500">ou entre com convite</span>
+              <span className="bg-[#080914] px-3 text-indigo-200/70">ou entre com convite</span>
             </div>
           </div>
 
@@ -120,11 +120,11 @@ export default function LandingPage() {
             <input
               type="text" value={code} onChange={(e) => setCode(e.target.value)}
               placeholder="Código do convite (ex: REHORSE-1234)"
-              className="w-full px-4 py-3 rounded-xl bg-gray-900 border border-gray-800 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-white/20 text-sm"
+              className="party-input w-full py-3"
             />
             <button
               type="submit" disabled={!code.trim()}
-              className="w-full px-6 py-3 rounded-xl bg-gray-800 text-white font-medium text-sm hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="party-button-secondary w-full py-3"
             >
               Entrar na banda
             </button>

@@ -117,13 +117,13 @@ export default function SuggestionsPage() {
 
   return (
     <div>
-      <h2 className="text-lg font-semibold mb-4">Sugestões de músicas</h2>
+      <h2 className="party-title mb-4 text-2xl">Sugestões de músicas</h2>
 
       {suggestions.length === 0 && !showInput && (
-        <div className="text-center py-16 text-gray-400 dark:text-gray-500">
+        <div className="party-card text-center py-16 text-indigo-200">
           <p className="text-4xl mb-3">💡</p>
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-500">Nenhuma sugestão ainda.</p>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Seja o primeiro a sugerir uma música!</p>
+          <p className="text-sm font-black text-white">Nenhuma sugestão ainda.</p>
+          <p className="party-subtle mt-1 text-xs">Seja o primeiro a sugerir uma música!</p>
         </div>
       )}
 
@@ -136,13 +136,13 @@ export default function SuggestionsPage() {
           const threshold = Math.max(1, Math.ceil(band.members.length * 0.7))
 
           return (
-            <div key={s.id} className="bg-white border border-gray-200 rounded-lg p-3.5 dark:bg-gray-900/70 dark:border-gray-800">
+            <div key={s.id} className="party-card p-3.5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-2">
-                    <span className="font-medium text-gray-900 dark:text-gray-100">{s.name}</span>
+                    <span className="font-black text-white">{s.name}</span>
                     {suggester && (
-                      <span className="text-xs text-gray-400">
+                      <span className="party-subtle text-xs">
                         por <span style={{ color: suggester.color }} className="font-medium">{suggester.displayName}</span>
                       </span>
                     )}
@@ -172,7 +172,7 @@ export default function SuggestionsPage() {
                       >
                         Não
                       </button>
-                      <span className="text-xs text-gray-400 dark:text-gray-500">
+                      <span className="party-subtle text-xs">
                         {yesCount}/{threshold} para aprovar · {noCount} não
                       </span>
                     </div>
@@ -182,13 +182,13 @@ export default function SuggestionsPage() {
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <button
                         onClick={() => handleDecision(s.id, 'promote')}
-                        className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400"
+                        className="party-button px-3 py-1.5 text-xs"
                       >
                         Aprovar e adicionar
                       </button>
                       <button
                         onClick={() => handleDecision(s.id, 'reject')}
-                        className="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400"
+                        className="party-button-secondary px-3 py-1.5 text-xs"
                       >
                         Rejeitar
                       </button>
@@ -236,19 +236,19 @@ export default function SuggestionsPage() {
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder="Nome da música"
-                className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder-gray-500"
+                className="party-input flex-1 py-2.5"
               />
-              <button type="submit" className="px-4 py-2.5 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors">
+              <button type="submit" className="party-button">
                 Sugerir
               </button>
-              <button type="button" onClick={() => { setShowInput(false); setNewName('') }} className="px-4 py-2.5 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
+              <button type="button" onClick={() => { setShowInput(false); setNewName('') }} className="party-button-secondary">
                 Cancelar
               </button>
             </form>
           ) : (
             <button
               onClick={() => setShowInput(true)}
-              className="mt-4 px-4 py-2.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors dark:bg-blue-950/30 dark:text-blue-400 dark:hover:bg-blue-900/30"
+              className="party-button mt-4"
             >
               + Sugerir música
             </button>
@@ -256,7 +256,7 @@ export default function SuggestionsPage() {
         </>
       )}
 
-      <p className="text-xs text-gray-400 dark:text-gray-500 mt-4">
+      <p className="party-subtle mt-4 text-xs">
         A sugestão vai automaticamente para o repertório quando atingir 70% de aprovação. Admins também podem aprovar manualmente.
       </p>
 

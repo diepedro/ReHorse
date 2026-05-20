@@ -118,20 +118,20 @@ export default function Calendar({
     <div>
       <div className="mb-5 space-y-3">
         {rehearsalDate ? (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+          <div className="party-card border-cyan-300/30">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Próximo ensaio confirmado</p>
-                <p className="mt-1 text-sm font-semibold text-emerald-950 dark:text-emerald-100">
+                <p className="text-xs font-black uppercase text-cyan-200">Próximo ensaio confirmado</p>
+                <p className="mt-1 text-sm font-black text-white">
                   {formatDisplayDate(rehearsalDate)}{rehearsalTime ? ` às ${rehearsalTime}` : ''}
                 </p>
-                {rehearsalNote && <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">{rehearsalNote}</p>}
+                {rehearsalNote && <p className="party-subtle mt-1 text-xs">{rehearsalNote}</p>}
               </div>
               {isAdmin && (
                 <button
                   onClick={clearSchedule}
                   disabled={schedulingDate === rehearsalDate}
-                  className="self-start rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
+                  className="party-button-secondary self-start px-3 py-1.5 text-xs"
                 >
                   Desmarcar
                 </button>
@@ -140,11 +140,11 @@ export default function Calendar({
           </div>
         ) : null}
 
-        <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+        <div className="party-card">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Melhores datas</p>
-              <p className="text-xs text-gray-400 dark:text-gray-500">Ranking baseado nas respostas de disponibilidade.</p>
+              <p className="text-sm font-black text-white">Melhores datas</p>
+              <p className="party-subtle text-xs">Ranking baseado nas respostas de disponibilidade.</p>
             </div>
             {isAdmin && (
               <div className="flex flex-col gap-2 sm:flex-row">
@@ -152,7 +152,7 @@ export default function Calendar({
                   type="time"
                   value={scheduleTime}
                   onChange={(e) => setScheduleTime(e.target.value)}
-                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                  className="party-input px-3 py-1.5 text-xs"
                 />
                 <input
                   type="text"
@@ -160,7 +160,7 @@ export default function Calendar({
                   onChange={(e) => setScheduleNote(e.target.value)}
                   placeholder="Nota opcional"
                   maxLength={80}
-                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500"
+                  className="party-input px-3 py-1.5 text-xs"
                 />
               </div>
             )}
@@ -168,19 +168,19 @@ export default function Calendar({
 
           <div className="mt-3 grid gap-2 sm:grid-cols-5">
             {rankedDates.map((item) => (
-              <div key={item.date} className="rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-950">
-                <p className="text-xs font-semibold text-gray-800 dark:text-gray-100">{formatDisplayDateShort(item.date)}</p>
-                <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+              <div key={item.date} className="rounded-lg border border-white/10 bg-black/20 p-3">
+                <p className="text-xs font-black text-white">{formatDisplayDateShort(item.date)}</p>
+                <p className="mt-1 text-[11px] text-indigo-100">
                   {item.available}/{item.total} disponíveis
                 </p>
-                <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                <p className="party-subtle text-[11px]">
                   {item.missing === 0 ? 'todos responderam' : `${item.missing} sem resposta`}
                 </p>
                 {isAdmin && (
                   <button
                     onClick={() => schedule(item.date)}
                     disabled={schedulingDate === item.date}
-                    className="mt-2 w-full rounded-md bg-gray-900 px-2 py-1.5 text-[11px] font-medium text-white hover:bg-gray-700 disabled:opacity-50 dark:bg-gray-700 dark:hover:bg-gray-600"
+                    className="party-button mt-2 w-full px-2 py-1.5 text-[11px]"
                   >
                     Confirmar
                   </button>
@@ -194,7 +194,7 @@ export default function Calendar({
       {/* Weekday headers */}
       <div className="grid grid-cols-7 gap-1 mb-1">
         {WEEKDAYS.map((day) => (
-          <div key={day} className="text-center text-xs font-medium text-gray-400 py-2">
+          <div key={day} className="py-2 text-center text-xs font-black text-indigo-200">
             {day}
           </div>
         ))}
@@ -211,7 +211,7 @@ export default function Calendar({
           {blocks.map((block, bi) => (
             <div key={bi}>
               <div
-                className={`text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide py-2 ${
+                className={`py-2 text-xs font-black uppercase text-indigo-200 ${
                   bi > 0 ? 'mt-3 border-t border-gray-200 dark:border-gray-800' : ''
                 }`}
               >

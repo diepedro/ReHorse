@@ -54,25 +54,25 @@ function SignInForm() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950 px-4">
+    <div className="party-bg flex min-h-screen flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6 text-gray-400 hover:text-white text-sm transition-colors">
+          <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm font-bold text-cyan-200 transition-colors hover:text-white">
             ← Voltar
           </Link>
-          <h1 className="text-2xl font-bold text-white">Entrar</h1>
+          <h1 className="party-title text-4xl">Entrar</h1>
         </div>
 
         {/* Local account quick-access */}
         {localAccount && (
-          <div className="bg-gray-900 border border-gray-700 rounded-xl p-4">
-            <p className="text-xs text-gray-500 mb-2">Conta salva neste dispositivo</p>
+          <div className="party-card">
+            <p className="party-subtle mb-2 text-xs font-bold">Conta salva neste dispositivo</p>
             <div className="flex items-center justify-between">
-              <span className="text-white text-sm font-medium">{localAccount.name}</span>
+              <span className="text-sm font-black text-white">{localAccount.name}</span>
               <button
                 onClick={handleLocal}
                 disabled={loading}
-                className="text-xs px-3 py-1.5 bg-white text-gray-900 font-semibold rounded-lg hover:bg-gray-100 disabled:opacity-40 transition-colors"
+                className="party-button px-3 py-1.5 text-xs"
               >
                 {loading ? '...' : 'Continuar'}
               </button>
@@ -81,13 +81,13 @@ function SignInForm() {
         )}
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-800">
+        <div className="party-segment flex">
           {(['email', 'recovery'] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => { setTab(t); setError('') }}
-              className={`flex-1 pb-2.5 text-sm font-medium transition-colors ${
-                tab === t ? 'text-white border-b-2 border-white -mb-px' : 'text-gray-500 hover:text-gray-300'
+              className={`flex-1 text-sm ${
+                tab === t ? 'party-segment-item party-segment-item-active' : 'party-segment-item hover:text-white'
               }`}
             >
               {t === 'email' ? 'E-mail e senha' : 'Código de recuperação'}
@@ -100,17 +100,17 @@ function SignInForm() {
             <input
               autoFocus type="email" value={email} onChange={(e) => setEmail(e.target.value)}
               placeholder="seu@email.com"
-              className="w-full px-4 py-3 rounded-xl bg-gray-900 border border-gray-800 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-white/20 text-sm"
+              className="party-input w-full py-3"
             />
             <input
               type="password" value={password} onChange={(e) => setPassword(e.target.value)}
               placeholder="Senha"
-              className="w-full px-4 py-3 rounded-xl bg-gray-900 border border-gray-800 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-white/20 text-sm"
+              className="party-input w-full py-3"
             />
             {error && <p className="text-red-400 text-xs">{error}</p>}
             <button
               type="submit" disabled={!email.trim() || !password || loading}
-              className="w-full px-6 py-3 rounded-xl bg-white text-gray-900 font-semibold text-sm hover:bg-gray-100 disabled:opacity-40 transition-colors"
+              className="party-button w-full py-3"
             >
               {loading ? 'Entrando...' : 'Entrar'}
             </button>
@@ -120,21 +120,21 @@ function SignInForm() {
             <input
               autoFocus type="text" value={code} onChange={(e) => setCode(e.target.value)}
               placeholder="XXXXXX-XXXXXX-XXXXXX"
-              className="w-full px-4 py-3 rounded-xl bg-gray-900 border border-gray-800 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-white/20 text-sm font-mono tracking-wider"
+              className="party-input w-full py-3 font-mono tracking-wider"
             />
             {error && <p className="text-red-400 text-xs">{error}</p>}
             <button
               type="submit" disabled={!code.trim() || loading}
-              className="w-full px-6 py-3 rounded-xl bg-white text-gray-900 font-semibold text-sm hover:bg-gray-100 disabled:opacity-40 transition-colors"
+              className="party-button w-full py-3"
             >
               {loading ? 'Entrando...' : 'Entrar'}
             </button>
           </form>
         )}
 
-        <p className="text-center text-xs text-gray-600">
+        <p className="party-subtle text-center text-xs">
           Não tem conta?{' '}
-          <Link href="/auth/register" className="text-gray-400 hover:text-white transition-colors">
+          <Link href="/auth/register" className="font-bold text-cyan-200 transition-colors hover:text-white">
             Criar conta →
           </Link>
         </p>

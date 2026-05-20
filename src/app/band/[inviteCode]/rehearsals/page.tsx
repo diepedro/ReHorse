@@ -11,7 +11,7 @@ export default function RehearsalsPage() {
 
   return (
     <div>
-      <h2 className="text-lg font-semibold mb-4 dark:text-gray-100">Próximas 8 semanas</h2>
+      <h2 className="party-title mb-4 text-2xl">Próximas 8 semanas</h2>
       <Calendar
         inviteCode={inviteCode}
         currentMember={currentMember}

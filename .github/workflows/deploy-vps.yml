@@ -36,16 +36,17 @@ jobs:
           printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
 
-          for attempt in 1 2 3; do
-            if ssh-keyscan -T 20 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts; then
-              exit 0
-            fi
-            echo "ssh-keyscan failed, retrying ($attempt/3)..."
-            sleep 5
-          done
-
-          echo "Could not read SSH host key from $VPS_HOST:$VPS_PORT"
-          exit 1
+          cat > ~/.ssh/config <<EOF
+          Host rehorse-vps
+            HostName $VPS_HOST
+            User $VPS_USER
+            Port $VPS_PORT
+            IdentityFile ~/.ssh/id_ed25519
+            StrictHostKeyChecking accept-new
+            ConnectTimeout 30
+            ServerAliveInterval 15
+          EOF
+          chmod 600 ~/.ssh/config
 
       - name: Package release
         shell: bash
@@ -62,15 +63,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          scp -P "$VPS_PORT" -i ~/.ssh/id_ed25519 \
-            /tmp/rehorse-release.tgz \
-            "$VPS_USER@$VPS_HOST:/tmp/rehorse-release-${GITHUB_SHA}.tgz"
+          scp /tmp/rehorse-release.tgz "rehorse-vps:/tmp/rehorse-release-${GITHUB_SHA}.tgz"
 
       - name: Deploy on VPS
         shell: bash
         run: |
           set -euo pipefail
-          ssh -p "$VPS_PORT" -i ~/.ssh/id_ed25519 "$VPS_USER@$VPS_HOST" \
+          ssh rehorse-vps \
             "VPS_APP_DIR='$VPS_APP_DIR' GITHUB_SHA='$GITHUB_SHA' bash -se" <<'EOF'
           set -Eeuo pipefail
 

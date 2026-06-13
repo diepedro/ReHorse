@@ -1,0 +1,93 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: rehorse-vps
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_PORT: ${{ secrets.VPS_PORT || '22' }}
+      VPS_APP_DIR: ${{ secrets.VPS_APP_DIR || '/opt/rehorse' }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Prepare SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$VPS_HOST" || { echo "Missing secret VPS_HOST"; exit 1; }
+          test -n "$VPS_USER" || { echo "Missing secret VPS_USER"; exit 1; }
+          test -n "${{ secrets.VPS_SSH_KEY }}" || { echo "Missing secret VPS_SSH_KEY"; exit 1; }
+
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Package release
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -czf /tmp/rehorse-release.tgz \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='.next' \
+            --exclude='test-results' \
+            .
+
+      - name: Upload release
+        shell: bash
+        run: |
+          set -euo pipefail
+          scp -P "$VPS_PORT" -i ~/.ssh/id_ed25519 \
+            /tmp/rehorse-release.tgz \
+            "$VPS_USER@$VPS_HOST:/tmp/rehorse-release-${GITHUB_SHA}.tgz"
+
+      - name: Deploy on VPS
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -p "$VPS_PORT" -i ~/.ssh/id_ed25519 "$VPS_USER@$VPS_HOST" \
+            "VPS_APP_DIR='$VPS_APP_DIR' GITHUB_SHA='$GITHUB_SHA' bash -se" <<'EOF'
+          set -Eeuo pipefail
+
+          case "$VPS_APP_DIR" in
+            /opt/rehorse|/home/*/rehorse|*/rehorse) ;;
+            *) echo "Refusing unsafe VPS_APP_DIR: $VPS_APP_DIR"; exit 1 ;;
+          esac
+
+          release_dir="$VPS_APP_DIR/releases/$GITHUB_SHA"
+          shared_dir="$VPS_APP_DIR/shared"
+          current_dir="$VPS_APP_DIR/current"
+          archive="/tmp/rehorse-release-$GITHUB_SHA.tgz"
+
+          mkdir -p "$release_dir" "$shared_dir"
+          tar -xzf "$archive" -C "$release_dir"
+          rm -f "$archive"
+
+          if [ ! -f "$shared_dir/.env" ]; then
+            echo "Missing $shared_dir/.env on the VPS"
+            echo "Create it once from .env.example with production values, then rerun this workflow."
+            exit 1
+          fi
+
+          ln -sfn "$shared_dir/.env" "$release_dir/.env"
+          ln -sfn "$release_dir" "$current_dir"
+
+          cd "$current_dir"
+          docker compose -p rehorse -f docker-compose.vps.yml up -d --build --remove-orphans
+          docker compose -p rehorse -f docker-compose.vps.yml ps
+
+          find "$VPS_APP_DIR/releases" -mindepth 1 -maxdepth 1 -type d | sort | head -n -5 | xargs -r rm -rf
+          EOF

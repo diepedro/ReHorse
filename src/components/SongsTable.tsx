@@ -1,6 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import StatusBadge from './StatusBadge'
 import AddSongModal from './AddSongModal'
@@ -56,15 +57,73 @@ function countStatuses(song: Song, members: BandMember[]) {
   )
 }
 
+function ReorderControls({
+  canMoveUp,
+  canMoveDown,
+  disabled,
+  disabledTitle = 'Reordenando...',
+  onMoveUp,
+  onMoveDown,
+}: {
+  canMoveUp: boolean
+  canMoveDown: boolean
+  disabled: boolean
+  disabledTitle?: string
+  onMoveUp: () => void
+  onMoveDown: () => void
+}) {
+  const baseClass = 'flex flex-1 items-center justify-center transition-colors'
+  const activeClass = 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100'
+  const inactiveClass = 'cursor-not-allowed text-slate-300 dark:text-slate-700'
+
+  return (
+    <div className="flex h-14 w-8 shrink-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+      <button
+        type="button"
+        onClick={onMoveUp}
+        disabled={disabled || !canMoveUp}
+        className={`${baseClass} ${disabled || !canMoveUp ? inactiveClass : activeClass}`}
+        title={disabled ? disabledTitle : 'Subir musica'}
+        aria-label="Subir musica"
+      >
+        <ChevronIcon direction="up" />
+      </button>
+      <button
+        type="button"
+        onClick={onMoveDown}
+        disabled={disabled || !canMoveDown}
+        className={`${baseClass} border-t border-slate-200 dark:border-slate-800 ${disabled || !canMoveDown ? inactiveClass : activeClass}`}
+        title={disabled ? disabledTitle : 'Descer musica'}
+        aria-label="Descer musica"
+      >
+        <ChevronIcon direction="down" />
+      </button>
+    </div>
+  )
+}
+
+function ChevronIcon({ direction }: { direction: 'up' | 'down' }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5" aria-hidden="true">
+      {direction === 'up' ? (
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 12l5-5 5 5" />
+      ) : (
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 8l5 5 5-5" />
+      )}
+    </svg>
+  )
+}
+
 interface SongsTableProps {
   inviteCode: string
   currentMember: BandMember | null
   allMembers: BandMember[]
   isAdmin?: boolean
   bandName?: string
+  readOnly?: boolean
 }
 
-export default function SongsTable({ inviteCode, currentMember, allMembers, isAdmin = false, bandName = '' }: SongsTableProps) {
+export default function SongsTable({ inviteCode, currentMember, allMembers, isAdmin = false, bandName = '', readOnly = false }: SongsTableProps) {
   const [songs, setSongs] = useState<Song[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -77,9 +136,14 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
   const [addingFromSearch, setAddingFromSearch] = useState(false)
   const [songPrimaryRef, setSongPrimaryRef] = useState<Record<number, { previewUrl: string | null; trackName: string; artistName: string; artworkUrl: string; durationMs: number | null }>>({})
   const [playingId, setPlayingId] = useState<number | null>(null)
+  const [reorderingSongId, setReorderingSongId] = useState<number | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const toast = useToast()
 
+  const canEdit = (!!currentMember || isAdmin) && !readOnly
+  const hasActiveFilters = search.trim() !== '' || filterRehearsed !== 'all' || filterMine !== 'all'
+  const showReorderControls = isAdmin && !readOnly
+  const canReorderSongs = showReorderControls && !hasActiveFilters
   const sortedMembers = [...allMembers].sort((a, b) => a.sortOrder - b.sortOrder)
 
   const fetchSongs = useCallback(async () => {
@@ -103,6 +167,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
   }, [fetchSongs])
 
   async function addSong(name: string) {
+    if (!canEdit) return
     const res = await fetch(`/api/bands/${inviteCode}/songs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -115,6 +180,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
   }
 
   async function addTrack(track: MusicTrack) {
+    if (!canEdit) return
     const res = await fetch(`/api/bands/${inviteCode}/songs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -144,6 +210,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
   }
 
   async function deleteSong(id: number) {
+    if (!canEdit) return
     const actorQuery = currentMember ? `&bandMemberId=${encodeURIComponent(currentMember.id)}` : ''
     const res = await fetch(`/api/bands/${inviteCode}/songs?id=${id}${actorQuery}`, { method: 'DELETE' })
     if (!res.ok) { toast('Erro ao remover música.', 'error'); return }
@@ -153,6 +220,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
   }
 
   async function cycleStatus(songId: number, memberId: string) {
+    if (readOnly) return
     const song = songs.find((s) => s.id === songId)
     if (!song) return
     const current = song.statuses[memberId] ?? 'none'
@@ -168,6 +236,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
   }
 
   async function cycleRehearsed(songId: number) {
+    if (!canEdit) return
     const song = songs.find((s) => s.id === songId)
     if (!song) return
     const next = CYCLE[(CYCLE.indexOf(song.rehearsed) + 1) % CYCLE.length]
@@ -181,6 +250,42 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
     fetchSongs()
   }
 
+  async function moveSong(songId: number, direction: -1 | 1) {
+    if (!canReorderSongs || reorderingSongId !== null) return
+
+    const from = songs.findIndex((song) => song.id === songId)
+    const to = from + direction
+    if (from < 0 || to < 0 || to >= songs.length) return
+
+    const previousSongs = songs
+    const nextSongs = [...songs]
+    const moved = nextSongs[from]
+    nextSongs[from] = nextSongs[to]
+    nextSongs[to] = moved
+    const orderedSongs = nextSongs.map((song, index) => ({ ...song, sortOrder: index }))
+
+    setSongs(orderedSongs)
+    setReorderingSongId(songId)
+
+    try {
+      const res = await fetch(`/api/bands/${inviteCode}/songs/reorder`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ songIds: orderedSongs.map((song) => song.id) }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error ?? 'Erro ao reordenar musicas.')
+      }
+      invalidateCache(`/api/bands/${inviteCode}/songs`)
+    } catch (error) {
+      setSongs(previousSongs)
+      toast(error instanceof Error ? error.message : 'Erro ao reordenar musicas.', 'error')
+    } finally {
+      setReorderingSongId(null)
+    }
+  }
+
   const filtered = songs.filter((s) => {
     if (search.trim() && !s.name.toLowerCase().includes(search.toLowerCase())) return false
     if (filterRehearsed !== 'all' && (s.rehearsed ?? 'none') !== filterRehearsed) return false
@@ -190,7 +295,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
     return true
   })
 
-  const colSpan = sortedMembers.length + 5 // play + name + members + rehearsed + duration + delete
+  const colSpan = sortedMembers.length + 4 + (canEdit ? 1 : 0) + (showReorderControls ? 1 : 0)
 
   const totalDurationMs = filtered.reduce((sum, s) => {
     const ref = songPrimaryRef[s.id]
@@ -201,11 +306,13 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
   function handlePlay(song: Song) {
     const ref = songPrimaryRef[song.id]
     if (!ref) {
+      if (!canEdit) return
       // No reference yet — open search
       setSearchSongId(song.id)
       return
     }
     if (!ref.previewUrl) {
+      if (!canEdit) return
       // Has reference but no preview — open search to update
       setSearchSongId(song.id)
       return
@@ -225,6 +332,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
   }
 
   async function handleMusicSelect(track: MusicTrack) {
+    if (!canEdit) return
     if (searchSongId === null) return
     const res = await fetch(`/api/bands/${inviteCode}/songs/${searchSongId}/references`, {
       method: 'POST',
@@ -334,22 +442,22 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
   return (
     <div>
       {/* Filters */}
-      <div className="flex flex-wrap gap-2 mb-4 items-center">
+      <div className="mb-4 grid gap-2 sm:flex sm:flex-wrap sm:items-center">
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar..."
-          className="party-input min-w-0 flex-1 px-3 py-1.5 sm:w-40 sm:flex-none"
+          className="party-input min-w-0 px-3 py-2 sm:w-48 sm:flex-none"
         />
 
-        <div className="party-segment">
+        <div className="party-segment w-full sm:w-auto">
           {(['all', 'none', 'partial', 'full'] as const).map((v) => (
             <button
               key={v}
               onClick={() => setFilterRehearsed(v)}
               className={`text-xs px-2 py-1 rounded-md transition-colors font-medium ${
-                filterRehearsed === v ? 'party-segment-item party-segment-item-active' : 'party-segment-item hover:text-white'
+                filterRehearsed === v ? 'party-segment-item party-segment-item-active' : 'party-segment-item'
               }`}
             >
               {v === 'all' ? 'Todas' : v === 'none' ? '—' : v === 'partial' ? 'Parcial' : 'Total'}
@@ -358,13 +466,13 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
         </div>
 
         {currentMember && (
-          <div className="party-segment">
+          <div className="party-segment w-full sm:w-auto">
             {(['all', 'none', 'partial', 'full'] as const).map((v) => (
               <button
                 key={v}
                 onClick={() => setFilterMine(v)}
                 className={`text-xs px-2 py-1 rounded-md transition-colors font-medium ${
-                  filterMine === v ? 'party-segment-item party-segment-item-active' : 'party-segment-item hover:text-white'
+                  filterMine === v ? 'party-segment-item party-segment-item-active' : 'party-segment-item'
                 }`}
                 title="Meu aprendizado"
               >
@@ -377,12 +485,21 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
         {(search || filterRehearsed !== 'all' || filterMine !== 'all') && (
           <button
             onClick={() => { setSearch(''); setFilterRehearsed('all'); setFilterMine('all') }}
-            className="text-xs font-bold text-cyan-200 transition-colors hover:text-white"
+            className="text-xs font-semibold text-blue-600 transition-colors hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
           >
             Limpar
           </button>
         )}
       </div>
+
+      {!canEdit && (
+        <div className="party-card-soft mb-4 flex flex-col gap-3 text-sm text-slate-600 dark:text-slate-300 sm:flex-row sm:items-center sm:justify-between">
+          <span>Entre como membro para editar o repertorio, marcar preparo e vincular referencias.</span>
+          <Link href={`/join/${inviteCode}`} className="party-button shrink-0 text-center">
+            Entrar na banda
+          </Link>
+        </div>
+      )}
 
       <div className="sm:hidden">
         {loading ? (
@@ -390,7 +507,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
             <div className="mx-auto h-5 w-5 animate-spin rounded-full border-2 border-gray-200 border-t-gray-500" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="party-card px-4 py-10 text-center text-sm text-indigo-200">
+          <div className="party-card px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
             {search ? 'Nenhuma música encontrada.' : 'Nenhuma música adicionada ainda.'}
           </div>
         ) : (
@@ -399,18 +516,31 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
               const counts = countStatuses(song, sortedMembers)
               const ownStatus = currentMember ? song.statuses[currentMember.id] ?? 'none' : null
               const duration = songPrimaryRef[song.id]?.durationMs
+              const isFirst = songs[0]?.id === song.id
+              const isLast = songs[songs.length - 1]?.id === song.id
 
               return (
-                <article key={song.id} className="party-card p-3">
+                <article key={song.id} className="party-card p-3.5">
                   <div className="flex items-start gap-2">
+                    {showReorderControls && (
+                      <ReorderControls
+                        canMoveUp={!isFirst}
+                        canMoveDown={!isLast}
+                        disabled={!canReorderSongs || reorderingSongId !== null}
+                        disabledTitle={!canReorderSongs ? 'Limpe os filtros para reordenar' : 'Salvando ordem'}
+                        onMoveUp={() => moveSong(song.id, -1)}
+                        onMoveDown={() => moveSong(song.id, 1)}
+                      />
+                    )}
                     <button
                       onClick={() => handlePlay(song)}
+                      disabled={!canEdit && !songPrimaryRef[song.id]?.previewUrl}
                       className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs transition-all ${
                         playingId === song.id
-                          ? 'bg-emerald-500 text-white'
+                          ? 'bg-emerald-600 text-white'
                           : songPrimaryRef[song.id]
-                          ? 'bg-cyan-400 text-gray-950 hover:bg-cyan-300'
-                          : 'bg-white/10 text-indigo-200 hover:bg-white/15 hover:text-white'
+                          ? 'bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:text-slate-950 dark:hover:bg-blue-400'
+                          : 'bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100'
                       }`}
                       title={songPrimaryRef[song.id] ? 'Tocar pré-escuta' : 'Vincular música'}
                     >
@@ -421,7 +551,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                       <div className="flex items-start justify-between gap-2">
                         <button
                           onClick={() => setDetailSongId(song.id)}
-                          className="min-w-0 text-left text-sm font-black leading-snug text-white transition-colors hover:text-yellow-200"
+                          className="min-w-0 text-left text-sm font-semibold leading-snug text-slate-950 transition-colors hover:text-blue-700 dark:text-slate-100 dark:hover:text-blue-300"
                           title="Ver detalhes"
                         >
                           {song.name}
@@ -433,7 +563,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                         )}
                       </div>
 
-                      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-indigo-200/75">
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
                         <span><strong className="text-emerald-600 dark:text-emerald-300">{counts.full}</strong> Total</span>
                         <span aria-hidden="true">·</span>
                         <span><strong className="text-amber-600 dark:text-amber-300">{counts.partial}</strong> Parcial</span>
@@ -450,7 +580,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                               key={member.id}
                               title={`${member.displayName}: ${meta.label}`}
                               aria-label={`${member.displayName}: ${meta.label}`}
-                              className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-white/10 bg-black/20 px-2 py-1 text-[11px] text-indigo-100"
+                              className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                             >
                               <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: member.color }} />
                               <span className="max-w-[4.5rem] truncate">{member.displayName}</span>
@@ -462,28 +592,29 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                         })}
                       </div>
 
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200/80 bg-slate-50/80 p-2 dark:border-white/10 dark:bg-slate-950/40">
                         {currentMember && ownStatus && (
                           <div className="flex items-center gap-1.5">
-                            <span className="text-[11px] font-black text-indigo-200/75">Meu</span>
-                            <StatusBadge
-                              status={ownStatus}
-                              isOwn={true}
-                              onClick={() => cycleStatus(song.id, currentMember.id)}
-                            />
+                            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Meu</span>
+                          <StatusBadge
+                            status={ownStatus}
+                            isOwn={canEdit}
+                            onClick={canEdit ? () => cycleStatus(song.id, currentMember.id) : undefined}
+                          />
                           </div>
                         )}
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[11px] font-black text-indigo-200/75">Ens.</span>
+                          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Ens.</span>
                           <StatusBadge
                             status={song.rehearsed}
-                            isOwn={true}
-                            onClick={() => cycleRehearsed(song.id)}
+                            isOwn={canEdit}
+                            onClick={canEdit ? () => cycleRehearsed(song.id) : undefined}
                           />
                         </div>
                       </div>
                     </div>
 
+                    {canEdit && (
                     <div className="shrink-0">
                       {confirmDelete === song.id ? (
                         <div className="flex flex-col items-end gap-1">
@@ -512,6 +643,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                         </button>
                       )}
                     </div>
+                    )}
                   </div>
                 </article>
               )
@@ -524,9 +656,10 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
         <div className="overflow-x-auto scrollbar-none">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-white/10 bg-black/18">
+              <tr className="border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/70">
+                {showReorderControls && <th className="w-12" />}
                 <th className="w-10" />
-                <th className="min-w-[140px] px-4 py-3 text-left font-black text-indigo-100">Música</th>
+                <th className="min-w-[140px] px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-200">Música</th>
                 {sortedMembers.map((m) => (
                   <th
                     key={m.id}
@@ -541,12 +674,12 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                     />
                   </th>
                 ))}
-                <th className="px-2 py-3 text-center font-black text-indigo-100 whitespace-nowrap">
+                <th className="px-2 py-3 text-center font-semibold text-slate-700 dark:text-slate-200 whitespace-nowrap">
                   <span className="hidden sm:inline">Ensaiado</span>
                   <span className="sm:hidden">Ens.</span>
                 </th>
-                <th className="hidden px-3 py-3 text-right font-black text-indigo-100 whitespace-nowrap sm:table-cell">Duração</th>
-                <th className="w-8" />
+                <th className="hidden px-3 py-3 text-right font-semibold text-slate-700 dark:text-slate-200 whitespace-nowrap sm:table-cell">Duração</th>
+                {canEdit && <th className="w-8" />}
               </tr>
             </thead>
             <tbody>
@@ -565,20 +698,37 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                   </td>
                 </tr>
               ) : (
-                filtered.map((song) => (
+                filtered.map((song) => {
+                  const isFirst = songs[0]?.id === song.id
+                  const isLast = songs[songs.length - 1]?.id === song.id
+
+                  return (
                   <tr
                     key={song.id}
-                    className="border-b border-white/10 transition-colors last:border-b-0 hover:bg-white/6"
+                    className="border-b border-slate-100 transition-colors last:border-b-0 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/70"
                   >
+                    {showReorderControls && (
+                      <td className="w-12 px-2 py-3">
+                        <ReorderControls
+                          canMoveUp={!isFirst}
+                          canMoveDown={!isLast}
+                          disabled={!canReorderSongs || reorderingSongId !== null}
+                          disabledTitle={!canReorderSongs ? 'Limpe os filtros para reordenar' : 'Salvando ordem'}
+                          onMoveUp={() => moveSong(song.id, -1)}
+                          onMoveDown={() => moveSong(song.id, 1)}
+                        />
+                      </td>
+                    )}
                     <td className="px-2 py-3 w-10 text-center">
                       <button
                         onClick={() => handlePlay(song)}
+                        disabled={!canEdit && !songPrimaryRef[song.id]?.previewUrl}
                         className={`w-7 h-7 flex items-center justify-center rounded-full text-xs transition-all mx-auto ${
                           playingId === song.id
-                            ? 'bg-emerald-500 text-white'
+                            ? 'bg-emerald-600 text-white'
                             : songPrimaryRef[song.id]
-                            ? 'bg-cyan-400 text-gray-950 hover:bg-cyan-300'
-                            : 'bg-white/10 text-indigo-200 hover:bg-white/15 hover:text-white'
+                            ? 'bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:text-slate-950 dark:hover:bg-blue-400'
+                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100'
                         }`}
                         title={songPrimaryRef[song.id] ? 'Tocar pré-escuta' : 'Vincular música'}
                       >
@@ -588,7 +738,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                     <td className="px-3 py-3">
                       <button
                         onClick={() => setDetailSongId(song.id)}
-                        className="text-left font-black leading-snug text-white transition-colors hover:text-yellow-200"
+                        className="text-left font-semibold leading-snug text-slate-950 transition-colors hover:text-blue-700 dark:text-slate-100 dark:hover:text-blue-300"
                         title="Ver detalhes"
                       >
                         {song.name}
@@ -600,8 +750,8 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                         <td key={m.id} className="text-center px-2 py-3 hidden sm:table-cell">
                           <StatusBadge
                             status={song.statuses[m.id] ?? 'none'}
-                            isOwn={isOwn}
-                            onClick={isOwn ? () => cycleStatus(song.id, m.id) : undefined}
+                            isOwn={isOwn && canEdit}
+                            onClick={isOwn && canEdit ? () => cycleStatus(song.id, m.id) : undefined}
                           />
                         </td>
                       )
@@ -609,8 +759,8 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                     <td className="text-center px-2 py-3">
                       <StatusBadge
                         status={song.rehearsed}
-                        isOwn={true}
-                        onClick={() => cycleRehearsed(song.id)}
+                        isOwn={canEdit}
+                        onClick={canEdit ? () => cycleRehearsed(song.id) : undefined}
                       />
                     </td>
                     <td className="text-right px-3 py-3 hidden sm:table-cell">
@@ -622,7 +772,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                         <span className="text-xs text-gray-200 dark:text-gray-700">—</span>
                       )}
                     </td>
-                    <td className="px-1 py-3">
+                    {canEdit && <td className="px-1 py-3">
                       {confirmDelete === song.id ? (
                         <div className="flex flex-col gap-1 items-center">
                           <button
@@ -649,9 +799,10 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
                           </svg>
                         </button>
                       )}
-                    </td>
+                    </td>}
                   </tr>
-                ))
+                  )
+                })
               )}
             </tbody>
           </table>
@@ -662,31 +813,31 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
         <div className="mt-2 flex justify-end px-1">
             <span className="party-subtle text-xs">
             {songsWithDuration < filtered.length && `${songsWithDuration}/${filtered.length} com duração · `}
-            Total: <span className="font-mono font-black tabular-nums text-white">{fmtDuration(totalDurationMs)}</span>
+            Total: <span className="font-mono font-semibold tabular-nums text-slate-900 dark:text-slate-100">{fmtDuration(totalDurationMs)}</span>
           </span>
         </div>
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        {currentMember && (
+        {canEdit && (
           <button
             onClick={() => setShowModal(true)}
-            className="party-button mt-4"
+            className="party-button mt-4 flex-1 sm:flex-none"
           >
             + Adicionar música
           </button>
         )}
-        {currentMember && (
+        {canEdit && (
           <button
             onClick={() => setAddingFromSearch(true)}
-            className="party-button-secondary mt-4"
+            className="party-button-secondary mt-4 flex-1 sm:flex-none"
           >
             Buscar e adicionar
           </button>
         )}
         <button
           onClick={printSetlist}
-          className="party-button-secondary mt-4"
+          className="party-button-secondary mt-4 flex-1 sm:flex-none"
         >
           Exportar setlist
         </button>
@@ -701,6 +852,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
           currentMember={currentMember}
           allMembers={allMembers}
           isAdmin={isAdmin}
+          readOnly={readOnly}
           onClose={() => setDetailSongId(null)}
         />
       )}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { readClientStorage } from '@/lib/client-storage'
 
 export default function PushNotificationToggle() {
   const [supported, setSupported] = useState(false)
@@ -39,7 +40,7 @@ export default function PushNotificationToggle() {
       await fetch('/api/push', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sub.toJSON()),
+        body: JSON.stringify({ ...sub.toJSON(), ...getBandMemberContext() }),
       })
       setSubscribed(true)
     } catch (e) {
@@ -89,6 +90,16 @@ export default function PushNotificationToggle() {
       )}
     </div>
   )
+}
+
+function getBandMemberContext() {
+  const inviteCode = readClientStorage('last_band')
+  if (!inviteCode) return {}
+
+  const memberId = readClientStorage(`band_${inviteCode}`)
+  if (!memberId) return {}
+
+  return { inviteCode, memberId }
 }
 
 function urlBase64ToUint8Array(base64String: string): ArrayBuffer {

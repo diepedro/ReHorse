@@ -14,7 +14,7 @@ const nextConfig = {
       {
         source: '/manifest.json',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=3600, must-revalidate' },
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
         ],
       },
       {
@@ -34,12 +34,12 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com",
               "style-src 'self' 'unsafe-inline'",
               "font-src 'self'",
               "img-src 'self' data: https://i.ytimg.com https://api.qrserver.com https://is1-ssl.mzstatic.com https://is2-ssl.mzstatic.com https://is3-ssl.mzstatic.com https://is4-ssl.mzstatic.com https://is5-ssl.mzstatic.com",
               "frame-src https://www.youtube.com https://open.spotify.com",
-              "connect-src 'self'",
+              "connect-src 'self' https://cloudflareinsights.com",
               "media-src 'self' blob: https://p.scdn.co https://audio-ssl.itunes.apple.com",
               "worker-src 'self'",
               "manifest-src 'self'",

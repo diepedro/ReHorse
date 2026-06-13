@@ -23,6 +23,9 @@ export async function POST(
     where: and(eq(bandMembers.id, params.memberId), eq(bandMembers.bandId, band.id)),
   })
   if (!member) return NextResponse.json({ error: 'Member not found' }, { status: 404 })
+  if (member.claimedBy && member.claimedBy !== session?.user?.id) {
+    return NextResponse.json({ error: 'Member slot already claimed' }, { status: 409 })
+  }
 
   // If authenticated, store their user ID so the band shows in their dashboard.
   // Otherwise fall back to the anonymous identifier.

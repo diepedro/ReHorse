@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { BandMember } from '@/lib/types'
+import { cachedJson } from '@/lib/client-cache'
 
 interface SongReference {
   id: number
@@ -33,6 +34,7 @@ interface Props {
   currentMember: BandMember | null
   allMembers: BandMember[]
   isAdmin: boolean
+  readOnly?: boolean
   onClose: () => void
 }
 
@@ -61,7 +63,7 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
-export default function SongDetailDrawer({ songId, inviteCode, currentMember, allMembers, isAdmin, onClose }: Props) {
+export default function SongDetailDrawer({ songId, inviteCode, currentMember, allMembers, isAdmin, readOnly = false, onClose }: Props) {
   const [song, setSong] = useState<SongDetail | null>(null)
   const [bpm, setBpm] = useState('')
   const [tonality, setTonality] = useState('')
@@ -75,8 +77,8 @@ export default function SongDetailDrawer({ songId, inviteCode, currentMember, al
   const drawerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    fetch(`/api/bands/${inviteCode}/songs/${songId}`)
-      .then((r) => r.ok ? r.json() : null)
+    cachedJson<SongDetail>(`/api/bands/${inviteCode}/songs/${songId}`)
+      .catch(() => null)
       .then((data: SongDetail | null) => {
         if (!data) return
         setSong(data)
@@ -87,6 +89,7 @@ export default function SongDetailDrawer({ songId, inviteCode, currentMember, al
   }, [songId, inviteCode])
 
   async function saveMeta() {
+    if (!canEdit) return
     setSavingMeta(true)
     await fetch(`/api/bands/${inviteCode}/songs/${songId}`, {
       method: 'PATCH',
@@ -102,6 +105,7 @@ export default function SongDetailDrawer({ songId, inviteCode, currentMember, al
 
   async function addReference(e: React.FormEvent) {
     e.preventDefault()
+    if (!canEdit) return
     const url = refUrl.trim()
     if (!url) return
 
@@ -134,6 +138,7 @@ export default function SongDetailDrawer({ songId, inviteCode, currentMember, al
   }
 
   async function removeReference(id: number) {
+    if (!canEdit) return
     await fetch(`/api/bands/${inviteCode}/songs/${songId}/references`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -144,6 +149,7 @@ export default function SongDetailDrawer({ songId, inviteCode, currentMember, al
 
   async function postComment(e: React.FormEvent) {
     e.preventDefault()
+    if (!canEdit) return
     if (!commentText.trim()) return
     setPostingComment(true)
     const res = await fetch(`/api/bands/${inviteCode}/songs/${songId}/comments`, {
@@ -160,6 +166,7 @@ export default function SongDetailDrawer({ songId, inviteCode, currentMember, al
   }
 
   async function deleteComment(id: number) {
+    if (!canEdit) return
     await fetch(`/api/bands/${inviteCode}/songs/${songId}/comments`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -177,7 +184,7 @@ export default function SongDetailDrawer({ songId, inviteCode, currentMember, al
     return allMembers.find((m) => m.id === authorId)?.color ?? '#6B7280'
   }
 
-  const canEdit = !!currentMember || isAdmin
+  const canEdit = (!!currentMember || isAdmin) && !readOnly
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">

@@ -43,14 +43,19 @@ export async function POST(
   const band = await getBand(params.inviteCode)
   if (!band) return NextResponse.json({ error: 'Band not found' }, { status: 404 })
   const actor = await getActor(req, band.id)
+  if (!actor) return NextResponse.json({ error: 'Member required' }, { status: 403 })
 
   await db
     .update(rehearsalSessions)
     .set({ endedAt: new Date() })
     .where(and(eq(rehearsalSessions.bandId, band.id), isNull(rehearsalSessions.endedAt)))
 
-  // Default song order = current songs sorted by id
-  const bandSongs = await db.select({ id: songs.id }).from(songs).where(eq(songs.bandId, band.id))
+  // Default song order = current repertoire order.
+  const bandSongs = await db
+    .select({ id: songs.id })
+    .from(songs)
+    .where(eq(songs.bandId, band.id))
+    .orderBy(songs.sortOrder, songs.createdAt, songs.id)
   const order = bandSongs.map((s) => s.id)
 
   const [session] = await db.insert(rehearsalSessions).values({
@@ -80,6 +85,8 @@ export async function PATCH(
 ) {
   const band = await getBand(params.inviteCode)
   if (!band) return NextResponse.json({ error: 'Band not found' }, { status: 404 })
+  const actor = await getActor(req, band.id)
+  if (!actor) return NextResponse.json({ error: 'Member required' }, { status: 403 })
 
   const body = await req.json()
   const update: Record<string, string> = {}
@@ -108,6 +115,7 @@ export async function DELETE(
   const band = await getBand(params.inviteCode)
   if (!band) return NextResponse.json({ error: 'Band not found' }, { status: 404 })
   const actor = await getActor(req, band.id)
+  if (!actor) return NextResponse.json({ error: 'Member required' }, { status: 403 })
 
   const active = await db.query.rehearsalSessions.findFirst({
     where: and(eq(rehearsalSessions.bandId, band.id), isNull(rehearsalSessions.endedAt)),

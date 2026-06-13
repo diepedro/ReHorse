@@ -6,9 +6,9 @@ import Legend from './Legend'
 import type { Availability, BandMember } from '@/lib/types'
 import { cachedJson, invalidateCache } from '@/lib/client-cache'
 
-const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
+const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom']
 const MONTH_NAMES = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ]
 
@@ -25,6 +25,7 @@ interface CalendarProps {
   rehearsalTime?: string | null
   rehearsalNote?: string | null
   isAdmin?: boolean
+  readOnly?: boolean
   onScheduleChange?: () => void
 }
 
@@ -36,12 +37,11 @@ export default function Calendar({
   rehearsalTime,
   rehearsalNote,
   isAdmin = false,
+  readOnly = false,
   onScheduleChange,
 }: CalendarProps) {
   const [availability, setAvailability] = useState<Availability[]>([])
   const [loading, setLoading] = useState(true)
-  const [scheduleTime, setScheduleTime] = useState(rehearsalTime ?? '')
-  const [scheduleNote, setScheduleNote] = useState(rehearsalNote ?? '')
   const [schedulingDate, setSchedulingDate] = useState<string | null>(null)
   const today = new Date()
 
@@ -65,12 +65,8 @@ export default function Calendar({
     fetchAvailability()
   }, [fetchAvailability])
 
-  useEffect(() => {
-    setScheduleTime(rehearsalTime ?? '')
-    setScheduleNote(rehearsalNote ?? '')
-  }, [rehearsalNote, rehearsalTime])
-
   async function handleToggle(dateStr: string) {
+    if (readOnly) return
     if (!currentMember) return
     const current = availability.find(
       (a) => a.bandMemberId === currentMember.id && a.date === dateStr
@@ -90,47 +86,31 @@ export default function Calendar({
     fetchAvailability()
   }
 
-  async function schedule(date: string) {
-    setSchedulingDate(date)
-    const res = await fetch(`/api/bands/${inviteCode}/schedule`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date, time: scheduleTime, note: scheduleNote }),
-    })
-    setSchedulingDate(null)
-    if (res.ok) onScheduleChange?.()
-  }
-
   async function clearSchedule() {
+    if (readOnly) return
     setSchedulingDate(rehearsalDate ?? '')
     const res = await fetch(`/api/bands/${inviteCode}/schedule`, { method: 'DELETE' })
     setSchedulingDate(null)
     if (res.ok) onScheduleChange?.()
   }
 
-  const rankedDates = days
-    .filter((date) => date >= new Date(today.getFullYear(), today.getMonth(), today.getDate()))
-    .map((date) => getDateScore(formatDate(date), availability, allMembers))
-    .sort((a, b) => b.available - a.available || b.responded - a.responded || a.date.localeCompare(b.date))
-    .slice(0, 5)
-
   return (
     <div>
       <div className="mb-5 space-y-3">
         {rehearsalDate ? (
-          <div className="party-card border-cyan-300/30">
+          <div className="party-card border-cyan-300/70 bg-cyan-50/80 dark:border-cyan-300/25 dark:bg-cyan-300/10">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="text-xs font-black uppercase text-cyan-200">Próximo ensaio confirmado</p>
-                <p className="mt-1 text-sm font-black text-white">
-                  {formatDisplayDate(rehearsalDate)}{rehearsalTime ? ` às ${rehearsalTime}` : ''}
+                <p className="text-xs font-semibold uppercase text-blue-700 dark:text-blue-300">Proximo ensaio confirmado</p>
+                <p className="mt-1 text-lg font-bold text-slate-950 dark:text-white">
+                  {formatDisplayDate(rehearsalDate)}{rehearsalTime ? ` as ${rehearsalTime}` : ''}
                 </p>
                 {rehearsalNote && <p className="party-subtle mt-1 text-xs">{rehearsalNote}</p>}
               </div>
               {isAdmin && (
                 <button
                   onClick={clearSchedule}
-                  disabled={schedulingDate === rehearsalDate}
+                  disabled={readOnly || schedulingDate === rehearsalDate}
                   className="party-button-secondary self-start px-3 py-1.5 text-xs"
                 >
                   Desmarcar
@@ -139,62 +119,11 @@ export default function Calendar({
             </div>
           </div>
         ) : null}
-
-        <div className="party-card">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-sm font-black text-white">Melhores datas</p>
-              <p className="party-subtle text-xs">Ranking baseado nas respostas de disponibilidade.</p>
-            </div>
-            {isAdmin && (
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <input
-                  type="time"
-                  value={scheduleTime}
-                  onChange={(e) => setScheduleTime(e.target.value)}
-                  className="party-input px-3 py-1.5 text-xs"
-                />
-                <input
-                  type="text"
-                  value={scheduleNote}
-                  onChange={(e) => setScheduleNote(e.target.value)}
-                  placeholder="Nota opcional"
-                  maxLength={80}
-                  className="party-input px-3 py-1.5 text-xs"
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="mt-3 grid gap-2 sm:grid-cols-5">
-            {rankedDates.map((item) => (
-              <div key={item.date} className="rounded-lg border border-white/10 bg-black/20 p-3">
-                <p className="text-xs font-black text-white">{formatDisplayDateShort(item.date)}</p>
-                <p className="mt-1 text-[11px] text-indigo-100">
-                  {item.available}/{item.total} disponíveis
-                </p>
-                <p className="party-subtle text-[11px]">
-                  {item.missing === 0 ? 'todos responderam' : `${item.missing} sem resposta`}
-                </p>
-                {isAdmin && (
-                  <button
-                    onClick={() => schedule(item.date)}
-                    disabled={schedulingDate === item.date}
-                    className="party-button mt-2 w-full px-2 py-1.5 text-[11px]"
-                  >
-                    Confirmar
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
 
-      {/* Weekday headers */}
       <div className="grid grid-cols-7 gap-1 mb-1">
         {WEEKDAYS.map((day) => (
-          <div key={day} className="py-2 text-center text-xs font-black text-indigo-200">
+          <div key={day} className="py-2 text-center text-xs font-semibold text-slate-500 dark:text-slate-400">
             {day}
           </div>
         ))}
@@ -211,7 +140,7 @@ export default function Calendar({
           {blocks.map((block, bi) => (
             <div key={bi}>
               <div
-                className={`py-2 text-xs font-black uppercase text-indigo-200 ${
+                className={`py-2 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 ${
                   bi > 0 ? 'mt-3 border-t border-gray-200 dark:border-gray-800' : ''
                 }`}
               >
@@ -228,7 +157,7 @@ export default function Calendar({
                         availability={availability}
                         currentMember={currentMember}
                         allMembers={allMembers}
-                        onToggle={currentMember ? handleToggle : undefined}
+                        onToggle={currentMember && !readOnly ? handleToggle : undefined}
                       />
                     ))}
                   </div>
@@ -240,9 +169,9 @@ export default function Calendar({
       )}
 
       <Legend members={allMembers} />
-      {currentMember && (
-        <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">
-          Clique para alternar: neutro → disponível → indisponível → neutro
+      {currentMember && !readOnly && (
+        <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+          Clique para alternar: neutro - disponivel - indisponivel - neutro
         </p>
       )}
     </div>
@@ -301,29 +230,11 @@ function formatDate(date: Date): string {
   return `${y}-${m}-${d}`
 }
 
-function getDateScore(date: string, availability: Availability[], members: BandMember[]) {
-  const entries = availability.filter((a) => a.date === date)
-  const available = entries.filter((a) => a.status === 'available').length
-  const unavailable = entries.filter((a) => a.status === 'unavailable').length
-  const responded = available + unavailable
-  const total = members.length
-  return { date, available, unavailable, responded, missing: Math.max(0, total - responded), total }
-}
-
 function formatDisplayDate(date: string) {
   const [year, month, day] = date.split('-').map(Number)
   return new Date(year, month - 1, day).toLocaleDateString('pt-BR', {
     weekday: 'long',
     day: '2-digit',
     month: 'long',
-  })
-}
-
-function formatDisplayDateShort(date: string) {
-  const [year, month, day] = date.split('-').map(Number)
-  return new Date(year, month - 1, day).toLocaleDateString('pt-BR', {
-    weekday: 'short',
-    day: '2-digit',
-    month: '2-digit',
   })
 }

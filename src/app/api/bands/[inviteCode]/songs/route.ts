@@ -26,7 +26,7 @@ export async function GET(
     .select()
     .from(songs)
     .where(eq(songs.bandId, band.id))
-    .orderBy(songs.createdAt)
+    .orderBy(songs.sortOrder, songs.createdAt, songs.id)
 
   if (bandSongs.length === 0) return NextResponse.json([])
 
@@ -60,6 +60,7 @@ export async function GET(
     return {
       id: song.id,
       name: song.name,
+      sortOrder: song.sortOrder,
       createdAt: song.createdAt,
       statuses: statusMap,
       rehearsed: (rehearsed?.status ?? 'none') as SongStatus,
@@ -98,9 +99,11 @@ export async function POST(
     return NextResponse.json({ error: 'Música já está no repertório' }, { status: 409 })
   }
 
+  const nextSortOrder = existing.reduce((max, song) => Math.max(max, song.sortOrder), -1) + 1
+
   const [song] = await db
     .insert(songs)
-    .values({ bandId: band.id, name: name.trim() })
+    .values({ bandId: band.id, name: name.trim(), sortOrder: nextSortOrder })
     .returning()
 
   if (reference?.refId && reference?.type && reference?.title) {
@@ -130,7 +133,7 @@ export async function POST(
     },
   })
 
-  return NextResponse.json({ id: song.id, name: song.name }, { status: 201 })
+  return NextResponse.json({ id: song.id, name: song.name, sortOrder: song.sortOrder }, { status: 201 })
 }
 
 // DELETE /api/bands/[inviteCode]/songs?id=123

@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { useSession } from 'next-auth/react'
-import type { BandMember } from '@/lib/types'
+import { cachedJson } from '@/lib/client-cache'
+import { useBand } from '@/contexts/BandContext'
 
 interface Announcement {
   id: number
@@ -19,35 +19,24 @@ function fmtDate(iso: string) {
 export default function AvisosPage() {
   const params = useParams()
   const inviteCode = params.inviteCode as string
-  const { data: session } = useSession()
+  const { band, currentMember, isAdmin, readOnly } = useBand()
 
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
-  const [members, setMembers] = useState<BandMember[]>([])
-  const [bandCreatedBy, setBandCreatedBy] = useState<string | null>(null)
-  const [currentMember, setCurrentMember] = useState<BandMember | null>(null)
   const [content, setContent] = useState('')
   const [posting, setPosting] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const members = band.members
 
   const load = useCallback(async () => {
-    const [aRes, bRes] = await Promise.all([
-      fetch(`/api/bands/${inviteCode}/announcements`),
-      fetch(`/api/bands/${inviteCode}`),
-    ])
-    if (aRes.ok) setAnnouncements(await aRes.json())
-    if (bRes.ok) {
-      const band = await bRes.json()
-      setMembers(band.members)
-      setBandCreatedBy(band.createdBy)
-      const memberId = localStorage.getItem(`band_${inviteCode}`)
-      if (memberId) setCurrentMember(band.members.find((m: BandMember) => m.id === memberId) ?? null)
-    }
+    const data = await cachedJson<Announcement[]>(`/api/bands/${inviteCode}/announcements`).catch(() => [])
+    setAnnouncements(data)
   }, [inviteCode])
 
   useEffect(() => { load() }, [load])
 
   async function post(e: React.FormEvent) {
     e.preventDefault()
+    if (readOnly) return
     if (!content.trim()) return
     setPosting(true)
     await fetch(`/api/bands/${inviteCode}/announcements`, {
@@ -61,6 +50,7 @@ export default function AvisosPage() {
   }
 
   async function del(id: number) {
+    if (readOnly) return
     await fetch(`/api/bands/${inviteCode}/announcements`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -68,8 +58,6 @@ export default function AvisosPage() {
     })
     load()
   }
-
-  const isAdmin = session?.user?.id && bandCreatedBy === session.user.id
 
   function authorName(authorId: string | null) {
     if (!authorId) return 'Anônimo'
@@ -85,7 +73,7 @@ export default function AvisosPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-4">
       {/* Post form */}
-      {(currentMember || isAdmin) && (
+      {(currentMember || isAdmin) && !readOnly && (
         <form onSubmit={post} className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
           <textarea
             ref={textareaRef}
@@ -125,7 +113,7 @@ export default function AvisosPage() {
                   <span className="text-xs font-semibold text-gray-700">{authorName(a.authorId)}</span>
                   <span className="text-xs text-gray-400">{fmtDate(a.createdAt)}</span>
                 </div>
-                {isAdmin && (
+                {isAdmin && !readOnly && (
                   <button onClick={() => del(a.id)} className="text-gray-300 hover:text-red-400 text-xs shrink-0">×</button>
                 )}
               </div>

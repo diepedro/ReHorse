@@ -54,10 +54,11 @@ function SignInForm() {
   }
 
   return (
-    <div className="party-bg flex min-h-screen flex-col items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-8">
-        <div className="text-center">
-          <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm font-bold text-cyan-200 transition-colors hover:text-white">
+    <div className="party-bg flex min-h-screen flex-col items-center justify-center px-4 py-8">
+      <div className="w-full max-w-md space-y-6">
+        <div className="party-card relative overflow-hidden py-7 text-center">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-300 via-amber-300 to-pink-400" />
+          <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200">
             ← Voltar
           </Link>
           <h1 className="party-title text-4xl">Entrar</h1>
@@ -68,7 +69,7 @@ function SignInForm() {
           <div className="party-card">
             <p className="party-subtle mb-2 text-xs font-bold">Conta salva neste dispositivo</p>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-black text-white">{localAccount.name}</span>
+              <span className="text-sm font-semibold text-slate-950 dark:text-slate-100">{localAccount.name}</span>
               <button
                 onClick={handleLocal}
                 disabled={loading}
@@ -87,7 +88,7 @@ function SignInForm() {
               key={t}
               onClick={() => { setTab(t); setError('') }}
               className={`flex-1 text-sm ${
-                tab === t ? 'party-segment-item party-segment-item-active' : 'party-segment-item hover:text-white'
+                tab === t ? 'party-segment-item party-segment-item-active' : 'party-segment-item'
               }`}
             >
               {t === 'email' ? 'E-mail e senha' : 'Código de recuperação'}
@@ -134,7 +135,7 @@ function SignInForm() {
 
         <p className="party-subtle text-center text-xs">
           Não tem conta?{' '}
-          <Link href="/auth/register" className="font-bold text-cyan-200 transition-colors hover:text-white">
+          <Link href="/auth/register" className="font-semibold text-blue-600 transition-colors hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200">
             Criar conta →
           </Link>
         </p>

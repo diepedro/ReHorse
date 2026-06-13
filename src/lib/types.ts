@@ -46,6 +46,7 @@ export interface Availability {
 export interface Song {
   id: number
   name: string
+  sortOrder: number
   createdAt: string
   // keyed by bandMemberId
   statuses: Record<string, SongStatus>

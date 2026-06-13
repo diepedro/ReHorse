@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import type { BandHistoryEvent } from '@/lib/types'
+import { cachedJson } from '@/lib/client-cache'
 
 const TYPE_LABEL: Record<string, string> = {
   song_added: 'Musica adicionada',
@@ -13,6 +14,7 @@ const TYPE_LABEL: Record<string, string> = {
   suggestion_auto_approved: 'Sugestao aprovada por votos',
   suggestion_rejected: 'Sugestao rejeitada',
   suggestion_removed: 'Sugestao removida',
+  suggestion_nudged: 'Nudge enviado',
   rehearsal_started: 'Ensaio iniciado',
   rehearsal_ended: 'Ensaio encerrado',
   rehearsal_updated: 'Ensaio atualizado',
@@ -20,6 +22,7 @@ const TYPE_LABEL: Record<string, string> = {
   member_removed: 'Membro removido',
   member_name_changed: 'Nome alterado',
   member_color_changed: 'Cor alterada',
+  member_claim_reset: 'Entrada liberada',
 }
 
 export default function BandHistoryPanel({
@@ -39,8 +42,8 @@ export default function BandHistoryPanel({
     if (!open || events.length > 0) return
     setLoading(true)
     const query = type ? `?type=${encodeURIComponent(type)}` : ''
-    fetch(`/api/bands/${inviteCode}/history${query}`)
-      .then((res) => res.ok ? res.json() : [])
+    cachedJson<BandHistoryEvent[]>(`/api/bands/${inviteCode}/history${query}`)
+      .catch(() => [])
       .then(setEvents)
       .finally(() => setLoading(false))
   }, [events.length, inviteCode, open, type])
@@ -48,11 +51,11 @@ export default function BandHistoryPanel({
   const visible = useMemo(() => events.slice(0, 30), [events])
 
   return (
-    <section className="mt-6 border-t border-white/10 pt-4">
+    <section className="mt-6 border-t border-slate-200/80 pt-4 dark:border-white/10">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="party-card flex w-full items-center justify-between py-3 text-left text-sm font-black text-white"
+        className="party-card-soft flex w-full items-center justify-between py-3 text-left text-sm font-semibold text-slate-950 dark:text-slate-100"
       >
         <span>{title}</span>
         <span className="party-subtle text-xs">{open ? 'Ocultar' : 'Ver historico'}</span>
@@ -61,11 +64,11 @@ export default function BandHistoryPanel({
       {open && (
         <div className="mt-3 space-y-2">
           {loading ? (
-            <div className="party-card text-sm text-indigo-200">
+            <div className="party-card text-sm text-slate-500 dark:text-slate-400">
               Carregando historico...
             </div>
           ) : visible.length === 0 ? (
-            <div className="party-card text-sm text-indigo-200">
+            <div className="party-card text-sm text-slate-500 dark:text-slate-400">
               Nenhum registro ainda.
             </div>
           ) : (
@@ -82,10 +85,10 @@ function HistoryItem({ event }: { event: BandHistoryEvent }) {
     <article className="party-card-soft p-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-black text-white">
+          <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">
             {TYPE_LABEL[event.type] ?? event.type}
           </p>
-          <p className="mt-0.5 truncate text-sm text-indigo-100">
+          <p className="mt-0.5 truncate text-sm text-slate-700 dark:text-slate-200">
             {event.subjectName ?? 'Sem titulo'}
           </p>
           <p className="party-subtle mt-1 text-xs">
@@ -111,10 +114,10 @@ function EventDetails({ details }: { details: Record<string, unknown> }) {
   if (entries.length === 0) return null
 
   return (
-    <dl className="mt-2 grid gap-2 text-xs text-indigo-100/80 sm:grid-cols-2">
+    <dl className="mt-2 grid gap-2 text-xs text-slate-600 dark:text-slate-300 sm:grid-cols-2">
       {entries.map(([key, value]) => (
-        <div key={key} className="rounded-md bg-black/24 px-2.5 py-2">
-          <dt className="font-black text-indigo-200/70">{labelKey(key)}</dt>
+        <div key={key} className="rounded-md bg-white/80 px-2.5 py-2 ring-1 ring-slate-200 dark:bg-slate-950/50 dark:ring-white/10">
+          <dt className="font-semibold text-slate-500 dark:text-slate-400">{labelKey(key)}</dt>
           <dd className="mt-0.5 break-words">{formatValue(key, value)}</dd>
         </div>
       ))}

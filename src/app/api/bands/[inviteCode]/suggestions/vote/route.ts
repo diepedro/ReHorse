@@ -74,7 +74,11 @@ export async function PUT(
     const duplicate = existing.some((song) => song.name.trim().toLowerCase() === suggestion.name.trim().toLowerCase())
     let songId: number | null = null
     if (!duplicate) {
-      const [song] = await db.insert(songs).values({ bandId: band.id, name: suggestion.name }).returning()
+      const nextSortOrder = existing.reduce((max, song) => Math.max(max, song.sortOrder), -1) + 1
+      const [song] = await db
+        .insert(songs)
+        .values({ bandId: band.id, name: suggestion.name, sortOrder: nextSortOrder })
+        .returning()
       songId = song.id
     }
     await db.delete(suggestions).where(eq(suggestions.id, Number(suggestionId)))

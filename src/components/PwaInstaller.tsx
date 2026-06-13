@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { readClientStorage, writeClientStorage } from '@/lib/client-storage'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -55,11 +56,11 @@ export default function PwaInstaller() {
       })
     }
 
-    if (localStorage.getItem('pwa_dismissed')) return
+    if (readClientStorage('pwa_dismissed')) return
     if (isInStandaloneMode()) return
 
-    const v = parseInt(localStorage.getItem('pwa_visits') ?? '0', 10) + 1
-    localStorage.setItem('pwa_visits', String(v))
+    const v = parseInt(readClientStorage('pwa_visits') ?? '0', 10) + 1
+    writeClientStorage('pwa_visits', String(v))
     setVisits(v)
 
     if (isIos() && isMobile() && v >= 1) {
@@ -76,7 +77,7 @@ export default function PwaInstaller() {
   }, [])
 
   function dismiss() {
-    localStorage.setItem('pwa_dismissed', '1')
+    writeClientStorage('pwa_dismissed', '1')
     setPrompt(null)
     setShowIos(false)
   }
@@ -94,7 +95,7 @@ export default function PwaInstaller() {
 
   if (waitingWorker) {
     return (
-      <div className="fixed bottom-16 sm:bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-sm z-40 bg-gray-900 border border-gray-700 rounded-2xl p-4 shadow-xl flex items-center gap-3">
+      <div className="fixed bottom-24 left-3 right-3 z-40 flex items-center gap-3 rounded-lg border border-white/10 bg-slate-950/95 p-3 shadow-xl backdrop-blur sm:bottom-4 sm:left-auto sm:right-4 sm:max-w-sm">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-xs font-bold text-white">RH</span>
         <div className="flex-1 min-w-0">
           <p className="text-white text-sm font-semibold">Atualização disponível</p>
@@ -112,7 +113,7 @@ export default function PwaInstaller() {
 
   if (showIos) {
     return (
-      <div className="fixed bottom-16 sm:bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-sm z-40 bg-gray-900 border border-gray-700 rounded-2xl p-4 shadow-xl">
+      <div className="fixed bottom-24 left-3 right-3 z-40 rounded-lg border border-white/10 bg-slate-950/95 p-3 shadow-xl backdrop-blur sm:bottom-4 sm:left-auto sm:right-4 sm:max-w-sm">
         <div className="flex items-start gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-xs font-bold text-white">RH</span>
           <div className="flex-1 min-w-0">
@@ -131,7 +132,7 @@ export default function PwaInstaller() {
   if (!prompt || visits < (isMobile() ? 1 : 2)) return null
 
   return (
-    <div className="fixed bottom-16 sm:bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-sm z-40 bg-gray-900 border border-gray-700 rounded-2xl p-4 shadow-xl flex items-center gap-3">
+    <div className="fixed bottom-24 left-3 right-3 z-40 flex items-center gap-3 rounded-lg border border-white/10 bg-slate-950/95 p-3 shadow-xl backdrop-blur sm:bottom-4 sm:left-auto sm:right-4 sm:max-w-sm">
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-xs font-bold text-white">RH</span>
       <div className="flex-1 min-w-0">
         <p className="text-white text-sm font-semibold">Instalar ReHorse</p>

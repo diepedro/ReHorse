@@ -6,6 +6,9 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { Band } from '@/lib/types'
 import ThemeToggle from '@/components/ThemeToggle'
+import BrandMark from '@/components/BrandMark'
+import { cachedJsonWithMeta } from '@/lib/client-cache'
+import { useOfflineReadOnly } from '@/lib/use-offline-readonly'
 
 interface BandEntry extends Band {
   role: 'admin' | 'member' | 'local'
@@ -161,6 +164,8 @@ export default function DashboardPage() {
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [joinCode, setJoinCode] = useState('')
   const [showAbsorb, setShowAbsorb] = useState(false)
+  const [staleDashboardData, setStaleDashboardData] = useState(false)
+  const offlineReadOnly = useOfflineReadOnly(staleDashboardData)
 
   useEffect(() => {
     const id = localStorage.getItem('creator_id')
@@ -170,8 +175,15 @@ export default function DashboardPage() {
 
   const fetchBands = useCallback(async () => {
     // 1. Bands from the API (created + claimed-by-userId)
-    const res = await fetch('/api/bands')
-    const apiBands: BandEntry[] = res.ok ? await res.json() : []
+    let apiBands: BandEntry[] = []
+    let staleData = false
+    try {
+      const result = await cachedJsonWithMeta<BandEntry[]>('/api/bands', 0)
+      apiBands = result.data
+      staleData = result.stale
+    } catch {
+      staleData = true
+    }
     // Normalise to lowercase for case-insensitive dedup (invite codes are uppercase in DB
     // but users may have joined using a mixed-case URL or typed code)
     const apiCodesLower = new Set(apiBands.map((b) => b.inviteCode.toLowerCase()))
@@ -192,18 +204,26 @@ export default function DashboardPage() {
     // Fetch each local band
     const localBands = await Promise.all(
       localCodes.map(async (code) => {
-        const r = await fetch(`/api/bands/${code}`)
-        if (!r.ok) return null
-        const b: Band = await r.json()
-        return { ...b, role: 'local' as const }
+        try {
+          const result = await cachedJsonWithMeta<Band>(`/api/bands/${code}`, 0)
+          staleData = staleData || result.stale
+          return { ...result.data, role: 'local' as const }
+        } catch {
+          return null
+        }
       })
     )
 
+    setStaleDashboardData(staleData)
     setBandList([...apiBands, ...localBands.filter(Boolean) as BandEntry[]])
     setLoading(false)
   }, [])
 
   useEffect(() => { fetchBands() }, [fetchBands])
+  useEffect(() => {
+    window.addEventListener('online', fetchBands)
+    return () => window.removeEventListener('online', fetchBands)
+  }, [fetchBands])
 
   function copyLink(code: string) {
     const url = `${window.location.origin}/join/${code}`
@@ -234,13 +254,13 @@ export default function DashboardPage() {
       <header className="party-topbar">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-xl">🎸</span>
+            <BrandMark size="sm" />
             <span className="party-title text-lg">ReHorse</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <ThemeToggle />
-            <Link href="/perfil" className="hidden text-sm font-bold text-cyan-100 transition-colors hover:text-white sm:block">{session?.user?.name}</Link>
-            <button onClick={() => setShowLogoutModal(true)} className="text-xs font-bold text-indigo-200/70 transition-colors hover:text-white">
+            <Link href="/perfil" className="hidden text-sm font-semibold text-slate-600 transition-colors hover:text-slate-950 sm:block dark:text-slate-300 dark:hover:text-white">{session?.user?.name}</Link>
+            <button onClick={() => setShowLogoutModal(true)} className="text-xs font-semibold text-slate-500 transition-colors hover:text-slate-950 dark:text-slate-400 dark:hover:text-white">
               Sair
             </button>
           </div>
@@ -248,12 +268,27 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="party-title text-2xl">Minhas bandas</h2>
-          <Link href="/dashboard/create" className="party-button">
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="party-title text-2xl">Minhas bandas</h2>
+            <p className="party-subtle mt-1 text-sm">Convites, integrantes e ensaios em um lugar.</p>
+          </div>
+          <Link
+            href="/dashboard/create"
+            aria-disabled={offlineReadOnly}
+            className={`party-button shrink-0 ${offlineReadOnly ? 'pointer-events-none opacity-50' : ''}`}
+          >
             + Nova banda
           </Link>
         </div>
+
+        {offlineReadOnly && (
+          <div className="party-alert mb-6">
+            <p>
+              <strong>Modo offline.</strong> Mostrando bandas salvas neste dispositivo. Criar ou entrar em uma banda nova exige conexao.
+            </p>
+          </div>
+        )}
 
         {showAbsorb && (
           <div className="mb-6">
@@ -275,14 +310,14 @@ export default function DashboardPage() {
 
         <form
           onSubmit={(e) => { e.preventDefault(); const t = joinCode.trim(); if (t) router.push(`/join/${t}`) }}
-          className="flex gap-2 mb-6"
+          className="mb-6 flex flex-col gap-2 sm:flex-row"
         >
           <input
             type="text"
             value={joinCode}
             onChange={(e) => setJoinCode(e.target.value)}
             placeholder="Entrar por código de convite"
-            className="party-input flex-1"
+            className="party-input min-w-0 flex-1"
           />
           <button
             type="submit"
@@ -298,25 +333,25 @@ export default function DashboardPage() {
             {[1, 2].map((i) => <div key={i} className="party-card h-24 animate-pulse" />)}
           </div>
         ) : bandList.length === 0 ? (
-          <div className="party-card text-center py-16 text-indigo-100">
-            <p className="text-5xl mb-4">🎵</p>
+          <div className="party-card text-center py-12 text-slate-500 dark:text-slate-400">
+            <BrandMark size="xl" className="mx-auto mb-4" />
             <p className="text-sm">Você ainda não tem nenhuma banda.</p>
-            <Link href="/dashboard/create" className="mt-4 inline-block text-sm font-black text-yellow-200 hover:underline">
+            <Link href="/dashboard/create" className="mt-4 inline-block text-sm font-semibold text-blue-600 hover:underline dark:text-blue-300">
               Criar sua primeira banda →
             </Link>
           </div>
         ) : (
           <div className="space-y-3">
             {bandList.map((band) => (
-              <div key={band.id} className="party-card flex items-center justify-between gap-4">
+              <div key={band.id} className="party-card flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="truncate text-base font-black text-white">{band.name}</span>
+                    <span className="truncate text-base font-semibold text-slate-950 dark:text-slate-100">{band.name}</span>
                     {band.role === 'admin' && (
-                      <span className="shrink-0 rounded-full bg-cyan-300 px-2 py-0.5 text-[10px] font-black text-gray-950">admin</span>
+                      <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-900/50 dark:text-blue-200">admin</span>
                     )}
                     {band.role === 'local' && (
-                      <span className="shrink-0 rounded-full bg-yellow-300 px-2 py-0.5 text-[10px] font-black text-gray-950" title="Entre pela página do convite para vincular ao seu perfil">
+                      <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-200" title="Entre pela página do convite para vincular ao seu perfil">
                         convite local
                       </span>
                     )}
@@ -324,18 +359,18 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-2">
                     <div className="flex -space-x-1">
                       {band.members.slice(0, 8).map((m) => (
-                        <span key={m.id} className="h-5 w-5 rounded-full border-2 border-white shadow-[0_2px_0_rgba(0,0,0,0.45)]" style={{ backgroundColor: m.color }} title={m.displayName} />
+                        <span key={m.id} className="h-5 w-5 rounded-full border-2 border-white shadow-sm dark:border-slate-900" style={{ backgroundColor: m.color }} title={m.displayName} />
                       ))}
                     </div>
                     <span className="party-subtle text-xs">{band.members.length} membro{band.members.length !== 1 ? 's' : ''}</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <button onClick={() => copyLink(band.inviteCode)} className="party-button-secondary px-3 py-1.5 text-xs">
+                <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0">
+                  <button onClick={() => copyLink(band.inviteCode)} className="party-button-secondary flex-1 px-3 py-1.5 text-xs sm:flex-none">
                     {copied === band.inviteCode ? '✓ Copiado' : 'Copiar link'}
                   </button>
-                  <Link href={`/band/${band.inviteCode}/rehearsals`} className="party-button px-3 py-1.5 text-xs">
+                  <Link href={`/band/${band.inviteCode}/rehearsals`} className="party-button flex-1 px-3 py-1.5 text-center text-xs sm:flex-none">
                     Abrir
                   </Link>
                 </div>

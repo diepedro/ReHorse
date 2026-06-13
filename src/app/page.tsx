@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
+import BrandMark from '@/components/BrandMark'
 
 interface BandEntry {
   inviteCode: string
@@ -51,12 +52,13 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="party-bg flex min-h-screen flex-col items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-10">
+    <div className="party-bg flex min-h-screen flex-col items-center justify-center px-4 py-8 sm:py-12">
+      <div className="w-full max-w-md space-y-6">
         {/* Brand */}
-        <div className="text-center">
-          <div className="inline-flex items-center gap-3 mb-4">
-            <span className="text-4xl">🎸</span>
+        <div className="party-card relative overflow-hidden py-8 text-center">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-300 via-amber-300 to-pink-400" />
+          <div className="mb-4 inline-flex items-center gap-3">
+            <BrandMark size="lg" />
             <h1 className="party-title text-5xl">ReHorse</h1>
           </div>
           <p className="party-subtle text-sm">Coordene ensaios, músicas e disponibilidade da banda.</p>
@@ -73,7 +75,7 @@ export default function LandingPage() {
                   className="party-card block w-full text-left px-5 py-3.5"
                 >
                   <p className="party-subtle mb-0.5 text-xs">{i === 0 ? 'Continuar como' : 'Também entrar como'}</p>
-                  <p className="text-sm font-black text-white">
+                  <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">
                     {b.memberName ?? 'Visitante'} · {b.bandName}
                   </p>
                 </button>
@@ -109,10 +111,10 @@ export default function LandingPage() {
           {/* Join via invite code */}
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/12" />
+              <div className="w-full border-t border-slate-200 dark:border-slate-800" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-[#080914] px-3 text-indigo-200/70">ou entre com convite</span>
+              <span className="bg-white px-3 text-slate-500 dark:bg-slate-950 dark:text-slate-400">ou entre com convite</span>
             </div>
           </div>
 

@@ -107,6 +107,7 @@ export async function initDb() {
           id         SERIAL PRIMARY KEY,
           band_id    TEXT NOT NULL REFERENCES bands(id) ON DELETE CASCADE,
           name       TEXT NOT NULL,
+          sort_order INTEGER NOT NULL DEFAULT 0,
           created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
         );
 
@@ -157,12 +158,43 @@ export async function initDb() {
 
         CREATE TABLE IF NOT EXISTS push_subscriptions (
           id         SERIAL PRIMARY KEY,
-          user_id    TEXT REFERENCES users(id) ON DELETE CASCADE,
+          user_id    TEXT,
           endpoint   TEXT NOT NULL UNIQUE,
           p256dh     TEXT NOT NULL,
           auth       TEXT NOT NULL,
           created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
         );
+
+        ALTER TABLE push_subscriptions
+          DROP CONSTRAINT IF EXISTS push_subscriptions_user_id_fkey;
+
+        CREATE TABLE IF NOT EXISTS band_notifications (
+          id         SERIAL PRIMARY KEY,
+          band_id    TEXT NOT NULL REFERENCES bands(id) ON DELETE CASCADE,
+          created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          title      TEXT NOT NULL,
+          body       TEXT NOT NULL,
+          url        TEXT,
+          created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS band_notification_recipients (
+          id              SERIAL PRIMARY KEY,
+          notification_id INTEGER NOT NULL REFERENCES band_notifications(id) ON DELETE CASCADE,
+          band_member_id  TEXT REFERENCES band_members(id) ON DELETE SET NULL,
+          display_name    TEXT NOT NULL,
+          user_id         TEXT,
+          endpoint        TEXT,
+          status          TEXT NOT NULL,
+          error           TEXT,
+          sent_at         TIMESTAMPTZ,
+          received_at     TIMESTAMPTZ,
+          opened_at       TIMESTAMPTZ,
+          created_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL
+        );
+
+        ALTER TABLE band_notification_recipients
+          DROP CONSTRAINT IF EXISTS band_notification_recipients_user_id_fkey;
 
         CREATE TABLE IF NOT EXISTS band_announcements (
           id         SERIAL PRIMARY KEY,
@@ -205,6 +237,7 @@ export async function initDb() {
         ALTER TABLE songs ADD COLUMN IF NOT EXISTS bpm INTEGER;
         ALTER TABLE songs ADD COLUMN IF NOT EXISTS tonality TEXT;
         ALTER TABLE songs ADD COLUMN IF NOT EXISTS notes TEXT;
+        ALTER TABLE songs ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
 
         ALTER TABLE bands ADD COLUMN IF NOT EXISTS rehearsal_date TEXT;
         ALTER TABLE bands ADD COLUMN IF NOT EXISTS rehearsal_time TEXT;

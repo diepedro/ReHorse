@@ -81,7 +81,9 @@ async function run() {
     CREATE TABLE IF NOT EXISTS songs (
       id SERIAL PRIMARY KEY,
       band_id TEXT NOT NULL REFERENCES bands(id) ON DELETE CASCADE,
-      name TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+      name TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
     );
     CREATE TABLE IF NOT EXISTS song_status (
       id SERIAL PRIMARY KEY,
@@ -109,6 +111,10 @@ async function run() {
     );
   `)
   console.log('✅  Schema ready.')
+
+  await sql.unsafe(`
+    ALTER TABLE songs ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
+  `)
 
   // 1. Create admin user (Pedro)
   const adminId = randomUUID()
@@ -162,10 +168,12 @@ async function run() {
   const oldSongs = sqlite.prepare('SELECT * FROM songs ORDER BY id').all() as any[]
   const songIdMap: Record<number, number> = {}
 
-  for (const song of oldSongs) {
+  for (let index = 0; index < oldSongs.length; index++) {
+    const song = oldSongs[index]
+    const sortOrder = typeof song.sort_order === 'number' ? song.sort_order : index
     const [newSong] = await sql`
-      INSERT INTO songs (band_id, name, created_at)
-      VALUES (${bandId}, ${song.name}, ${song.created_at ?? new Date().toISOString()})
+      INSERT INTO songs (band_id, name, sort_order, created_at)
+      VALUES (${bandId}, ${song.name}, ${sortOrder}, ${song.created_at ?? new Date().toISOString()})
       RETURNING id
     `
     songIdMap[song.id] = newSong.id

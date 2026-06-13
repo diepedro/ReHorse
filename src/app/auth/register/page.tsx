@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import BrandMark from '@/components/BrandMark'
 
 interface LocalBand {
   inviteCode: string
@@ -230,7 +231,7 @@ function RegisterForm() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950 px-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
-          <div className="text-4xl mb-4">🎸</div>
+          <BrandMark size="lg" className="mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-white">Vincular bandas</h1>
           <p className="text-gray-400 text-sm mt-2">
             Encontramos bandas que você acessou neste dispositivo. Selecione quais vincular à sua nova conta.

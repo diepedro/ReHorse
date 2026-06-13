@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useBand } from '@/contexts/BandContext'
 import type { BandHistoryEvent } from '@/lib/types'
+import { cachedJson } from '@/lib/client-cache'
 
 const FILTERS = [
   { value: 'all', label: 'Tudo' },
@@ -23,6 +24,7 @@ const TYPE_LABEL: Record<string, string> = {
   suggestion_auto_approved: 'Sugestão aprovada por votos',
   suggestion_rejected: 'Sugestão rejeitada',
   suggestion_removed: 'Sugestão removida',
+  suggestion_nudged: 'Nudge enviado',
   rehearsal_started: 'Ensaio iniciado',
   rehearsal_ended: 'Ensaio encerrado',
   rehearsal_updated: 'Ensaio atualizado',
@@ -30,6 +32,7 @@ const TYPE_LABEL: Record<string, string> = {
   member_removed: 'Membro removido',
   member_name_changed: 'Nome alterado',
   member_color_changed: 'Cor alterada',
+  member_claim_reset: 'Entrada liberada',
 }
 
 export default function HistoryPage() {
@@ -40,8 +43,8 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch(`/api/bands/${inviteCode}/history`)
-      .then((res) => res.ok ? res.json() : [])
+    cachedJson<BandHistoryEvent[]>(`/api/bands/${inviteCode}/history`)
+      .catch(() => [])
       .then(setEvents)
       .finally(() => setLoading(false))
   }, [inviteCode])

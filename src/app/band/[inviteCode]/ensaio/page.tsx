@@ -1,11 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import type { Song, BandMember } from '@/lib/types'
 import { useBand } from '@/contexts/BandContext'
-import BandHistoryPanel from '@/components/BandHistoryPanel'
 import { cachedJson, invalidateCache } from '@/lib/client-cache'
+import BrandMark from '@/components/BrandMark'
 
 interface RehearsalSession {
   id: number
@@ -41,7 +42,8 @@ function fmtSecs(s: number) {
 export default function EnsaioPage() {
   const params = useParams()
   const inviteCode = params.inviteCode as string
-  const { currentMember } = useBand()
+  const { currentMember, readOnly } = useBand()
+  const canControl = !!currentMember && !readOnly
 
   const [session, setSession] = useState<RehearsalSession | null | false>(false) // false = loading
   const [songs, setSongs] = useState<Song[]>([])
@@ -103,6 +105,7 @@ export default function EnsaioPage() {
   }, [session])
 
   async function startSession() {
+    if (!canControl || !currentMember) return
     setSession(false)
     const actorQuery = currentMember ? `?bandMemberId=${encodeURIComponent(currentMember.id)}` : ''
     const res = await fetch(`/api/bands/${inviteCode}/rehearsal${actorQuery}`, { method: 'POST' })
@@ -111,6 +114,7 @@ export default function EnsaioPage() {
   }
 
   async function endSession() {
+    if (!canControl || !currentMember) return
     setEnding(true)
     const actorQuery = currentMember ? `?bandMemberId=${encodeURIComponent(currentMember.id)}` : ''
     const res = await fetch(`/api/bands/${inviteCode}/rehearsal${actorQuery}`, { method: 'DELETE' })
@@ -121,7 +125,8 @@ export default function EnsaioPage() {
   }
 
   async function patch(body: { songOrder?: number[]; playedSongs?: number[] }) {
-    await fetch(`/api/bands/${inviteCode}/rehearsal`, {
+    if (!canControl || !currentMember) return
+    await fetch(`/api/bands/${inviteCode}/rehearsal?bandMemberId=${encodeURIComponent(currentMember.id)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -130,6 +135,7 @@ export default function EnsaioPage() {
   }
 
   async function togglePlayed(songId: number) {
+    if (!canControl) return
     if (!session || typeof session !== 'object' || session.endedAt) return
     const current = session.playedSongs
     const next = current.includes(songId)
@@ -140,6 +146,7 @@ export default function EnsaioPage() {
   }
 
   async function cycleRehearsed(songId: number) {
+    if (!canControl) return
     const song = songs.find((s) => s.id === songId)
     if (!song) return
     const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(song.rehearsed as typeof STATUS_CYCLE[number]) + 1) % STATUS_CYCLE.length]
@@ -156,6 +163,7 @@ export default function EnsaioPage() {
   // ── Drag helpers ───────────────────────────────────────────────────────────
 
   async function applyReorder(from: number, to: number) {
+    if (!canControl) return
     if (from === to) return
     const next = [...orderedSongs]
     const [item] = next.splice(from, 1)
@@ -169,17 +177,19 @@ export default function EnsaioPage() {
   }
 
   // Mouse drag
-  function handleDragStart(index: number) { dragIndex.current = index }
-  function handleDragOver(e: React.DragEvent, index: number) { e.preventDefault(); setDragOver(index) }
+  function handleDragStart(index: number) { if (canControl) dragIndex.current = index }
+  function handleDragOver(e: React.DragEvent, index: number) { if (!canControl) return; e.preventDefault(); setDragOver(index) }
   function handleDrop(dropIdx: number) { applyReorder(dragIndex.current ?? dropIdx, dropIdx) }
 
   // Touch drag
   function handleTouchStart(e: React.TouchEvent, index: number) {
+    if (!canControl) return
     dragIndex.current = index
     touchY.current = e.touches[0].clientY
   }
 
   function handleTouchMove(e: React.TouchEvent) {
+    if (!canControl) return
     e.preventDefault()
     const y = e.touches[0].clientY
     const el = document.elementFromPoint(e.touches[0].clientX, y)
@@ -201,6 +211,7 @@ export default function EnsaioPage() {
   // ── Recording helpers ──────────────────────────────────────────────────────
 
   async function startRecording(songId: number) {
+    if (!canControl) return
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const mr = new MediaRecorder(stream)
@@ -251,6 +262,52 @@ export default function EnsaioPage() {
   const playedSongs = isActive ? session.playedSongs : []
   const totalSongs = orderedSongs.length
 
+  if (!currentMember) {
+    const visibleSession = session && typeof session === 'object' ? session : null
+    const activeGuestSession = visibleSession && !visibleSession.endedAt
+
+    return (
+      <div className="mx-auto max-w-lg space-y-6 py-4">
+        {visibleSession && (
+          <div className="party-card">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              {activeGuestSession ? 'Ensaio em andamento' : 'Ultimo ensaio'}
+            </p>
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                {new Date(visibleSession.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                {visibleSession.endedAt && (
+                  <span className="ml-2 text-slate-400 dark:text-slate-500">
+                    - {formatDuration(new Date(visibleSession.endedAt).getTime() - new Date(visibleSession.createdAt).getTime())}
+                  </span>
+                )}
+              </p>
+              <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-300">
+                {visibleSession.playedSongs.length}/{songs.length} musicas
+              </span>
+            </div>
+          </div>
+        )}
+
+        <div className="party-card flex flex-col items-center gap-4 p-8 text-center">
+          <div className="rounded-full bg-blue-50 px-4 py-3 text-xl font-bold text-blue-700 ring-1 ring-blue-100 dark:bg-cyan-300/10 dark:text-cyan-200 dark:ring-cyan-300/20">
+            RH
+          </div>
+          <div>
+            <p className="font-semibold text-slate-950 dark:text-slate-100">Entre para controlar o ensaio</p>
+            <p className="party-subtle mt-1 text-sm">
+              Membros podem iniciar ensaios, marcar musicas executadas, reordenar o setlist e gravar referencias.
+            </p>
+          </div>
+          <Link href={`/join/${inviteCode}`} className="party-button w-full text-center sm:w-auto">
+            Entrar na banda
+          </Link>
+        </div>
+
+      </div>
+    )
+  }
+
   // ── No active session ──────────────────────────────────────────────────────
 
   if (!isActive) {
@@ -287,21 +344,20 @@ export default function EnsaioPage() {
         )}
 
         <div className="bg-white border border-gray-200 rounded-xl p-8 flex flex-col items-center gap-4 dark:bg-gray-900 dark:border-gray-800">
-          <div className="text-5xl">🎸</div>
+          <BrandMark size="xl" />
           <div className="text-center">
             <p className="font-semibold text-gray-900 dark:text-gray-100">Pronto para ensaiar?</p>
             <p className="text-sm text-gray-400 mt-1 dark:text-gray-400">{songs.length} música{songs.length !== 1 ? 's' : ''} no repertório</p>
           </div>
           <button
             onClick={startSession}
-            disabled={songs.length === 0}
+            disabled={songs.length === 0 || !canControl}
             className="px-8 py-3 bg-gray-900 text-white font-semibold rounded-xl hover:bg-gray-700 disabled:opacity-40 transition-colors"
           >
-            Iniciar ensaio
+            {readOnly ? 'Indisponivel offline' : 'Iniciar ensaio'}
           </button>
         </div>
 
-        <BandHistoryPanel inviteCode={inviteCode} type="rehearsal" title="Historico de ensaios" />
       </div>
     )
   }
@@ -323,7 +379,7 @@ export default function EnsaioPage() {
           </div>
           <button
             onClick={endSession}
-            disabled={ending}
+            disabled={ending || !canControl}
             className="text-sm px-4 py-1.5 border border-gray-200 text-gray-500 rounded-lg hover:border-red-300 hover:text-red-500 transition-colors disabled:opacity-40 dark:border-gray-700 dark:text-gray-400 dark:hover:border-red-800 dark:hover:text-red-400"
           >
             {ending ? 'Encerrando...' : 'Encerrar'}
@@ -354,7 +410,7 @@ export default function EnsaioPage() {
             <div
               key={song.id}
               data-drag-index={index}
-              draggable
+              draggable={canControl}
               onDragStart={() => handleDragStart(index)}
               onDragOver={(e) => handleDragOver(e, index)}
               onDragLeave={() => setDragOver(null)}
@@ -366,7 +422,7 @@ export default function EnsaioPage() {
             >
               {/* Drag handle — mouse + touch */}
               <div
-                className="text-gray-300 dark:text-gray-600 cursor-grab active:cursor-grabbing shrink-0 touch-none"
+                className={`text-gray-300 dark:text-gray-600 shrink-0 touch-none ${canControl ? 'cursor-grab active:cursor-grabbing' : 'cursor-default opacity-50'}`}
                 title="Arrastar para reordenar"
                 onTouchStart={(e) => handleTouchStart(e, index)}
                 onTouchMove={handleTouchMove}
@@ -388,6 +444,7 @@ export default function EnsaioPage() {
               {/* Rehearsed status badge */}
               <button
                 onClick={() => cycleRehearsed(song.id)}
+                disabled={!canControl}
                 className={`text-xs px-2 py-0.5 rounded-full font-medium transition-colors shrink-0 ${STATUS_COLOR[song.rehearsed ?? 'none']}`}
                 title="Nível de preparo da banda (clique para alterar)"
               >
@@ -401,7 +458,7 @@ export default function EnsaioPage() {
                 return (
                   <button
                     onClick={() => isRecordingThis ? stopRecording() : startRecording(song.id)}
-                    disabled={isRecordingOther}
+                    disabled={isRecordingOther || (!canControl && !isRecordingThis)}
                     title={isRecordingThis ? 'Parar gravação' : 'Gravar esta música'}
                     className={`shrink-0 flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-all ${
                       isRecordingThis
@@ -428,6 +485,7 @@ export default function EnsaioPage() {
               {/* Played toggle */}
               <button
                 onClick={() => togglePlayed(song.id)}
+                disabled={!canControl}
                 className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all ${
                   played
                     ? 'bg-emerald-500 text-white hover:bg-emerald-600'
@@ -485,7 +543,6 @@ export default function EnsaioPage() {
         )
       })()}
 
-      <BandHistoryPanel inviteCode={inviteCode} type="rehearsal" title="Historico de ensaios" />
     </div>
   )
 }

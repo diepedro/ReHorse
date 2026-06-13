@@ -1,27 +1,36 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useParams, useRouter } from 'next/navigation'
+import { usePathname, useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import type { Band, BandMember } from '@/lib/types'
 import ThemeToggle from '@/components/ThemeToggle'
 import { BandContext } from '@/contexts/BandContext'
+import BrandMark from '@/components/BrandMark'
+import { readClientStorage, writeClientStorage } from '@/lib/client-storage'
+import { cachedJsonWithMeta } from '@/lib/client-cache'
+import { useOfflineReadOnly } from '@/lib/use-offline-readonly'
 
 export default function BandLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const inviteCode = params.inviteCode as string
+  const memberIdFromUrl = searchParams.get('memberId')
 
   const { data: session } = useSession()
   const [band, setBand] = useState<Band | null>(null)
   const [currentMember, setCurrentMember] = useState<BandMember | null>(null)
+  const [memberQueryFallback, setMemberQueryFallback] = useState(false)
   const [loading, setLoading] = useState(true)
   const [editingName, setEditingName] = useState(false)
   const [nameValue, setNameValue] = useState('')
   const [savingName, setSavingName] = useState(false)
+  const [staleBandData, setStaleBandData] = useState(false)
   const nameInputRef = useRef<HTMLInputElement>(null)
+  const offlineReadOnly = useOfflineReadOnly(staleBandData)
 
   // PWA install
   const [installPrompt, setInstallPrompt] = useState<Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> } | null>(null)
@@ -56,31 +65,88 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
   }
 
   const fetchBand = useCallback(async () => {
-    const res = await fetch(`/api/bands/${inviteCode}`)
-    if (!res.ok) { router.push('/'); return }
-    const data: Band = await res.json()
+    let data: Band
+    try {
+      const result = await cachedJsonWithMeta<Band>(`/api/bands/${inviteCode}`, 0)
+      data = result.data
+      setStaleBandData(result.stale)
+    } catch {
+      router.push('/')
+      return
+    }
+
     setBand(data)
 
-    const memberId = localStorage.getItem(`band_${inviteCode}`)
+    const storedMemberId = readClientStorage(`band_${inviteCode}`)
+    const memberId = storedMemberId ?? memberIdFromUrl
     if (memberId) {
       const found = data.members.find((m) => m.id === memberId) ?? null
       setCurrentMember(found)
+      setMemberQueryFallback(!storedMemberId && !!memberIdFromUrl && !!found)
+      if (found && !storedMemberId) {
+        writeClientStorage(`band_${inviteCode}`, found.id)
+        writeClientStorage(`member_name_${inviteCode}`, found.displayName)
+      }
+    } else {
+      setCurrentMember(null)
+      setMemberQueryFallback(false)
     }
 
-    localStorage.setItem('last_band', inviteCode)
-    localStorage.setItem(`band_name_${inviteCode}`, data.name)
+    writeClientStorage('last_band', inviteCode)
+    writeClientStorage(`band_name_${inviteCode}`, data.name)
     setLoading(false)
-  }, [inviteCode, router])
+  }, [inviteCode, memberIdFromUrl, router])
 
   useEffect(() => { fetchBand() }, [fetchBand])
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.addEventListener('online', fetchBand)
+    return () => window.removeEventListener('online', fetchBand)
+  }, [fetchBand])
   useEffect(() => { if (editingName) nameInputRef.current?.focus() }, [editingName])
+
+  useEffect(() => {
+    if (!currentMember) return
+    if (offlineReadOnly) return
+    if (typeof window === 'undefined') return
+    if (!('serviceWorker' in navigator) || !('Notification' in window)) return
+    if (Notification.permission !== 'granted') return
+
+    let cancelled = false
+
+    async function syncPushMember() {
+      const reg = await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.getSubscription()
+      if (!sub || cancelled) return
+
+      const json = sub.toJSON()
+      await fetch('/api/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          endpoint: sub.endpoint,
+          keys: json.keys,
+          inviteCode,
+          memberId: currentMember!.id,
+        }),
+      })
+    }
+
+    syncPushMember().catch(() => {
+      // Push sync is best-effort and should not block band navigation.
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [currentMember, inviteCode, offlineReadOnly])
 
   const tabs = useMemo(() => [
     { href: `/band/${inviteCode}/rehearsals`, label: 'Ensaios' },
     { href: `/band/${inviteCode}/songs`, label: 'Músicas' },
     { href: `/band/${inviteCode}/suggestions`, label: 'Sugestões' },
     { href: `/band/${inviteCode}/insights`, label: 'Análise' },
-    { href: `/band/${inviteCode}/ensaio`, label: '🎸 Ensaiar' },
+    { href: `/band/${inviteCode}/ensaio`, label: 'Ensaiar' },
     { href: `/band/${inviteCode}/settings`, label: 'Ajustes' },
   ], [inviteCode])
 
@@ -88,6 +154,7 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
     { href: `/band/${inviteCode}/rehearsals`, label: 'Ensaios' },
     { href: `/band/${inviteCode}/songs`, label: 'Músicas' },
     { href: `/band/${inviteCode}/suggestions`, label: 'Sug.' },
+    { href: `/band/${inviteCode}/insights`, label: 'Anl.' },
     { href: `/band/${inviteCode}/ensaio`, label: 'Ensaiar' },
     { href: `/band/${inviteCode}/settings`, label: 'Ajustes' },
   ], [inviteCode])
@@ -97,6 +164,10 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
   }, [router, tabs])
 
   async function saveName() {
+    if (offlineReadOnly) {
+      setEditingName(false)
+      return
+    }
     const trimmed = nameValue.trim()
     if (!trimmed || !currentMember || trimmed === currentMember.displayName) {
       setEditingName(false); return
@@ -108,7 +179,7 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
       body: JSON.stringify({ displayName: trimmed, actorMemberId: currentMember.id }),
     })
     if (res.ok) {
-      localStorage.setItem(`member_name_${inviteCode}`, trimmed)
+      writeClientStorage(`member_name_${inviteCode}`, trimmed)
       setCurrentMember((m) => m ? { ...m, displayName: trimmed } : m)
     }
     setSavingName(false)
@@ -116,6 +187,7 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
   }
 
   function startEdit() {
+    if (offlineReadOnly) return
     setNameValue(currentMember?.displayName ?? '')
     setEditingName(true)
   }
@@ -135,28 +207,33 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
   const suggestAccountName = sessionName && currentMember && sessionName !== currentMember.displayName
 
   const joinLabel = isAdmin ? 'Escolher slot' : 'Entrar na banda'
+  const withMemberFallback = (href: string) => {
+    if (!memberQueryFallback || !currentMember) return href
+    return `${href}?memberId=${encodeURIComponent(currentMember.id)}`
+  }
 
   return (
     <div className="party-bg min-h-screen">
       <header className="party-topbar">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between h-14">
+          <div className="flex min-h-14 items-center justify-between gap-2 py-2">
             <div className="flex items-center gap-2 min-w-0">
               <Link href={session?.user?.id ? '/dashboard' : '/'} className="text-gray-400 hover:text-gray-600 shrink-0 transition-colors" title={session?.user?.id ? 'Minhas bandas' : 'Início'}>
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                   <path fillRule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z" clipRule="evenodd" />
                 </svg>
               </Link>
+              <BrandMark size="sm" />
               <span className="party-title truncate text-base">{band.name}</span>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2">
               {isInstallable && (
                 <div className="relative">
                   <button
                     onClick={handleInstall}
                     title="Instalar aplicativo"
-                    className="party-button-secondary flex items-center gap-1.5 px-2.5 py-1.5 text-xs"
+                    className="party-icon-button sm:w-auto sm:px-2.5 sm:text-xs"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 256 256">
                       <path d="M240,136v64a16,16,0,0,1-16,16H32a16,16,0,0,1-16-16V136a16,16,0,0,1,16-16H80a8,8,0,0,1,0,16H32v64H224V136H176a8,8,0,0,1,0-16h48A16,16,0,0,1,240,136Zm-117.66-2.34a8,8,0,0,0,11.32,0l48-48a8,8,0,0,0-11.32-11.32L136,108.69V32a8,8,0,0,0-16,0v76.69L85.66,74.34A8,8,0,0,0,74.34,85.66Z"/>
@@ -192,26 +269,26 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
                     {suggestAccountName && (
                       <button
                         onClick={() => setNameValue(sessionName)}
-                        className="whitespace-nowrap text-xs font-bold text-cyan-200 hover:text-white"
+                        className="whitespace-nowrap text-xs font-semibold text-blue-600 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
                         title="Usar nome da sua conta"
                       >
                         Usar "{sessionName}"
                       </button>
                     )}
-                    <button onClick={saveName} disabled={savingName} className="text-xs font-black text-emerald-300 hover:text-white">✓</button>
-                    <button onClick={() => setEditingName(false)} className="text-xs text-pink-300 hover:text-white">✕</button>
+                    <button onClick={saveName} disabled={savingName} className="text-xs font-semibold text-emerald-600 hover:text-emerald-800 dark:text-emerald-300 dark:hover:text-emerald-200">✓</button>
+                    <button onClick={() => setEditingName(false)} className="text-xs text-rose-500 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200">✕</button>
                   </div>
                 ) : (
-                  <button onClick={startEdit} className="group flex min-w-0 items-center gap-2 rounded-full bg-white/10 px-2.5 py-1 text-white ring-1 ring-white/10" title="Alterar seu nome na banda" aria-label={`Alterar seu nome na banda: ${currentMember.displayName}`}>
+                  <button onClick={startEdit} disabled={offlineReadOnly} className={`group flex min-w-0 items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 ${offlineReadOnly ? 'cursor-default opacity-80' : ''}`} title={offlineReadOnly ? 'Indisponivel no modo offline' : 'Alterar seu nome na banda'} aria-label={`Alterar seu nome na banda: ${currentMember.displayName}`}>
                     <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: currentMember.color }} />
-                    <span className="text-sm font-medium block max-w-[7rem] truncate">{currentMember.displayName}</span>
-                    <span className="text-cyan-200 transition-colors group-hover:text-white text-xs">✎</span>
+                    <span className="block max-w-[5.5rem] truncate text-sm font-medium sm:max-w-[7rem]">{currentMember.displayName}</span>
+                    {!offlineReadOnly && <span className="text-slate-400 transition-colors group-hover:text-slate-700 text-xs dark:group-hover:text-slate-200">✎</span>}
                   </button>
                 )
               ) : (
                 <Link
                   href={`/join/${inviteCode}`}
-                  className="party-button px-3 py-1.5 text-xs"
+                  className="party-button max-w-[7.5rem] truncate px-3 py-1.5 text-xs sm:max-w-none"
                 >
                   {joinLabel}
                 </Link>
@@ -225,11 +302,11 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
               return (
                 <Link
                   key={tab.href}
-                  href={tab.href}
+                  href={withMemberFallback(tab.href)}
                   className={`whitespace-nowrap ${
                     isActive
                       ? 'party-tab party-tab-active'
-                      : 'party-tab hover:text-white'
+                      : 'party-tab'
                   }`}
                 >
                   {tab.label}
@@ -240,12 +317,27 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
         </div>
       </header>
 
+      {offlineReadOnly && (
+        <div className="party-alert">
+          <p>
+            <strong>Modo offline.</strong> Mostrando dados salvos neste dispositivo. Edicoes ficam bloqueadas ate reconectar.{' '}
+            <button
+              type="button"
+              onClick={fetchBand}
+              className="font-semibold text-blue-700 underline dark:text-blue-200"
+            >
+              Tentar atualizar
+            </button>
+          </p>
+        </div>
+      )}
+
       {/* Guest/admin slot banner */}
       {!currentMember && isAdmin && (
-        <div className="border-b border-white/10 bg-cyan-400/12 px-4 py-2.5 text-center">
-          <p className="text-xs text-cyan-50">
+        <div className="party-alert">
+          <p>
             Você administra esta banda.{' '}
-            <Link href={`/join/${inviteCode}`} className="font-black text-yellow-200 underline">
+            <Link href={`/join/${inviteCode}`} className="font-semibold text-blue-700 underline dark:text-blue-200">
               Escolha seu slot para participar dos ensaios e músicas →
             </Link>
           </p>
@@ -253,10 +345,10 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
       )}
 
       {!currentMember && !isAdmin && (
-        <div className="border-b border-white/10 bg-yellow-300/12 px-4 py-2.5 text-center">
-          <p className="text-xs text-yellow-50">
+        <div className="party-alert">
+          <p>
             Você está visualizando como <strong>convidado</strong>.{' '}
-            <Link href={`/join/${inviteCode}`} className="font-black text-yellow-200 underline">
+            <Link href={`/join/${inviteCode}`} className="font-semibold text-amber-800 underline dark:text-amber-200">
               Escolha seu slot para interagir →
             </Link>
           </p>
@@ -265,18 +357,18 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
 
       {/* Nudge: member but no account */}
       {currentMember && !session?.user && (
-        <div className="border-b border-white/10 bg-cyan-400/12 px-4 py-2.5 text-center">
-          <p className="text-xs text-cyan-50">
+        <div className="party-alert">
+          <p>
             Você está como <strong>{currentMember.displayName}</strong> neste dispositivo.{' '}
-            <Link href="/auth/register" className="font-black text-cyan-200 underline">
+            <Link href="/auth/register" className="font-semibold text-blue-700 underline dark:text-blue-200">
               Crie uma conta para acessar de qualquer lugar →
             </Link>
           </p>
         </div>
       )}
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-5 sm:py-6 pb-24 sm:pb-6">
-        <BandContext.Provider value={{ band, currentMember, isAdmin: !!isAdmin, refetch: fetchBand }}>
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-5 sm:py-6 pb-28 sm:pb-6">
+        <BandContext.Provider value={{ band, currentMember, isAdmin: !!isAdmin, readOnly: offlineReadOnly, refetch: fetchBand }}>
           <div className="page-enter">
             {children}
           </div>
@@ -284,20 +376,20 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
       </main>
 
       <nav className="party-bottom-nav sm:hidden fixed bottom-0 left-0 right-0 z-30 border-t backdrop-blur" aria-label="Seções principais">
-        <div className="grid grid-cols-5">
+        <div className="grid grid-cols-6">
           {mobileTabs.map((tab) => {
             const isActive = pathname === tab.href
             return (
               <Link
                 key={tab.href}
-                href={tab.href}
-                className={`flex min-h-14 items-center justify-center px-1 text-[11px] font-semibold transition-colors ${
+                href={withMemberFallback(tab.href)}
+                className={`flex min-h-14 items-center justify-center px-0.5 text-[10px] font-semibold transition-colors ${
                   isActive
-                    ? 'text-gray-950'
-                    : 'text-indigo-200/70 hover:text-white'
+                    ? 'text-cyan-700 dark:text-cyan-200'
+                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'
                 }`}
               >
-                <span className={`rounded-full px-2.5 py-1 ${isActive ? 'bg-yellow-300 shadow-[0_3px_0_rgba(0,0,0,0.35)]' : ''}`}>
+                <span className={`rounded-lg px-2 py-1 ${isActive ? 'bg-cyan-50 ring-1 ring-cyan-200 dark:bg-cyan-300/10 dark:ring-cyan-300/20' : ''}`}>
                   {tab.label}
                 </span>
               </Link>

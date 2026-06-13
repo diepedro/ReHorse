@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
         : `Ensaio em 1 semana (${formatted})`
 
     await pushToBand(band.id, {
-      title: '🎸 Lembrete de ensaio',
+      title: 'Lembrete de ensaio',
       body,
       url: `/${band.inviteCode}/disponibilidade`,
     })

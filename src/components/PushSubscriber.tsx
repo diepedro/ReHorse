@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { readClientStorage } from '@/lib/client-storage'
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -10,7 +11,39 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 export default function PushSubscriber() {
-  const [showBanner, setShowBanner] = useState(false)
+  const [showPrompt, setShowPrompt] = useState(false)
+  const [requesting, setRequesting] = useState(false)
+
+  const saveSub = useCallback(async (sub: PushSubscription) => {
+    const json = sub.toJSON()
+    const context = getBandMemberContext()
+    await fetch('/api/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endpoint: sub.endpoint, keys: json.keys, ...context }),
+    })
+  }, [])
+
+  const subscribeSilently = useCallback(async () => {
+    try {
+      const reg = await navigator.serviceWorker.ready
+      const existing = await reg.pushManager.getSubscription()
+      if (existing) {
+        await saveSub(existing)
+        setShowPrompt(false)
+        return
+      }
+
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
+      })
+      await saveSub(sub)
+      setShowPrompt(false)
+    } catch {
+      // Browser permission or push setup can fail without blocking the app.
+    }
+  }, [saveSub])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -18,112 +51,106 @@ export default function PushSubscriber() {
     if (!('Notification' in window)) return
     if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) return
 
-    let timer: ReturnType<typeof setTimeout> | null = null
-    let idleId: number | null = null
     let cancelled = false
 
-    function maybeShowPrompt() {
+    function syncPromptState() {
       if (cancelled) return
-      const permission = Notification.permission
 
-      if (permission === 'granted') {
+      if (Notification.permission === 'granted') {
         subscribeSilently()
         return
       }
 
-      if (
-        permission === 'default' &&
-        localStorage.getItem('lgpd_ok') &&
-        !localStorage.getItem('push_dismissed')
-      ) {
-        timer = setTimeout(() => setShowBanner(true), 4000)
+      if (Notification.permission === 'default' && readClientStorage('lgpd_ok')) {
+        setShowPrompt(true)
+      } else {
+        setShowPrompt(false)
       }
     }
 
-    if ('requestIdleCallback' in window) {
-      idleId = window.requestIdleCallback(() => maybeShowPrompt(), { timeout: 5000 })
-    } else {
-      timer = setTimeout(() => maybeShowPrompt(), 2500)
-    }
-    window.addEventListener('lgpd:accepted', maybeShowPrompt)
+    syncPromptState()
+    window.addEventListener('lgpd:accepted', syncPromptState)
+    window.addEventListener('focus', syncPromptState)
 
     return () => {
       cancelled = true
-      if (timer) clearTimeout(timer)
-      if (idleId !== null && 'cancelIdleCallback' in window) window.cancelIdleCallback(idleId)
-      window.removeEventListener('lgpd:accepted', maybeShowPrompt)
+      window.removeEventListener('lgpd:accepted', syncPromptState)
+      window.removeEventListener('focus', syncPromptState)
     }
-  }, [])
-
-  async function subscribeSilently() {
-    try {
-      const reg = await navigator.serviceWorker.ready
-      const existing = await reg.pushManager.getSubscription()
-      if (existing) return
-
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
-      })
-      await saveSub(sub)
-    } catch {
-      // Browser permission or push setup can fail without blocking the app.
-    }
-  }
+  }, [subscribeSilently])
 
   async function requestAndSubscribe() {
-    setShowBanner(false)
+    setRequesting(true)
     try {
       const permission = await Notification.requestPermission()
-      if (permission !== 'granted') {
-        localStorage.setItem('push_dismissed', '1')
-        return
+      if (permission === 'granted') {
+        await subscribeSilently()
+      } else {
+        setShowPrompt(false)
       }
-      await subscribeSilently()
     } catch {
-      // Ignore notification permission quirks.
+      setShowPrompt(false)
+    } finally {
+      setRequesting(false)
     }
   }
 
-  async function saveSub(sub: PushSubscription) {
-    const json = sub.toJSON()
-    await fetch('/api/push', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ endpoint: sub.endpoint, keys: json.keys }),
-    })
-  }
-
-  function dismiss() {
-    localStorage.setItem('push_dismissed', '1')
-    setShowBanner(false)
-  }
-
-  if (!showBanner) return null
+  if (!showPrompt) return null
 
   return (
-    <div className="fixed bottom-16 sm:bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-sm z-50 bg-gray-900 border border-gray-700 rounded-2xl p-4 shadow-xl">
-      <div className="flex items-start gap-3">
-        <span className="text-2xl shrink-0">🔔</span>
-        <div className="flex-1 min-w-0">
-          <p className="text-white text-sm font-semibold">Ativar notificações</p>
-          <p className="text-gray-400 text-xs mt-1">
-            Saiba quando chegam sugestões, votações e lembretes de ensaio.
-          </p>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/45 px-4 py-5 backdrop-blur-sm sm:items-center">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="push-permission-title"
+        className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+      >
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cyan-50 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-200">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5">
+              <path d="M10 2a6 6 0 00-6 6v2.586l-.707.707A1 1 0 004 13h12a1 1 0 00.707-1.707L16 10.586V8a6 6 0 00-6-6z" />
+              <path d="M10 18a3 3 0 002.83-2H7.17A3 3 0 0010 18z" />
+            </svg>
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 id="push-permission-title" className="text-base font-semibold text-slate-950 dark:text-slate-100">
+              Ative as notificacoes
+            </h2>
+            <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300">
+              Assim a banda recebe avisos quando entram sugestoes, nudges e lembretes de ensaio.
+            </p>
+          </div>
         </div>
-        <button onClick={dismiss} className="text-gray-500 hover:text-gray-300 text-lg leading-none shrink-0" aria-label="Fechar notificações">×</button>
-      </div>
-      <div className="flex justify-end gap-2 mt-3">
-        <button onClick={dismiss} className="text-xs text-gray-500 hover:text-gray-300 px-2">
-          Agora não
-        </button>
-        <button
-          onClick={requestAndSubscribe}
-          className="text-xs bg-white text-gray-900 font-semibold px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-        >
-          Ativar
-        </button>
+
+        <div className="mt-5 flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={requestAndSubscribe}
+            disabled={requesting}
+            className="party-button w-full justify-center"
+          >
+            {requesting ? 'Ativando...' : 'Ativar notificacoes'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowPrompt(false)}
+            disabled={requesting}
+            className="party-button-secondary w-full justify-center"
+          >
+            Continuar sem notificacoes
+          </button>
+        </div>
       </div>
     </div>
   )
+}
+
+function getBandMemberContext() {
+  const inviteCode = readClientStorage('last_band')
+  if (!inviteCode) return {}
+
+  const memberId = readClientStorage(`band_${inviteCode}`)
+  if (!memberId) return {}
+
+  return { inviteCode, memberId }
 }

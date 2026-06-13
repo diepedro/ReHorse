@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { bands, bandMembers, songs, songStatus, songRehearsed, availability, suggestions } from '@/lib/schema'
-import { eq, and, gte, inArray, ilike } from 'drizzle-orm'
-import type { SongStatus } from '@/lib/types'
+import { availability, bands, songs, songRehearsed, songStatus } from '@/lib/schema'
+import { and, eq, gte, ilike, inArray } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,11 +56,6 @@ export async function GET(
           )
       : []
 
-  const mySuggestions = await db
-    .select()
-    .from(suggestions)
-    .where(and(eq(suggestions.bandId, band.id), eq(suggestions.suggestedBy, memberId)))
-
   const totalSongs = bandSongs.length
   const myStatuses = allStatuses.filter((s) => s.bandMemberId === memberId)
   const songsFull = myStatuses.filter((s) => s.status === 'full').length
@@ -76,38 +70,34 @@ export async function GET(
   const insightSuggestions: string[] = []
 
   if (totalSongs === 0) {
-    insightSuggestions.push('Adicione músicas ao repertório para começar a rastrear o progresso.')
+    insightSuggestions.push('Adicione musicas ao repertorio para comecar a rastrear o progresso.')
     return NextResponse.json({ personal, general, suggestions: insightSuggestions, stats: null })
   }
 
-  // Personal insights
   if (songsFull === totalSongs) {
-    personal.push(`Você tirou todas as ${totalSongs} músicas. Parabéns!`)
+    personal.push(`Voce tirou todas as ${totalSongs} musicas. Parabens!`)
   } else if (songsFull === 0 && songsPartial === 0) {
-    personal.push(`Você ainda não marcou progresso em nenhuma música.`)
-    insightSuggestions.push('Marque as músicas que você já sabe na aba Músicas.')
+    personal.push('Voce ainda nao marcou progresso em nenhuma musica.')
+    insightSuggestions.push('Marque as musicas que voce ja sabe na aba Musicas.')
   } else {
     const pct = Math.round((songsFull / totalSongs) * 100)
-    personal.push(`Você tirou ${songsFull} de ${totalSongs} músicas (${pct}%).`)
-    if (songsPartial > 0) personal.push(`${songsPartial} músicas estão parcialmente aprendidas.`)
+    personal.push(`Voce tirou ${songsFull} de ${totalSongs} musicas (${pct}%).`)
+    if (songsPartial > 0) personal.push(`${songsPartial} musicas estao parcialmente aprendidas.`)
   }
 
   if (availCount === 0) {
-    personal.push(`Você não marcou disponibilidade para as próximas semanas.`)
+    personal.push('Voce nao marcou disponibilidade para as proximas semanas.')
     insightSuggestions.push('Marque sua disponibilidade na aba Ensaios.')
   } else {
-    personal.push(`Você está disponível em ${availCount} dia(s) nas próximas semanas.`)
+    personal.push(`Voce esta disponivel em ${availCount} dia(s) nas proximas semanas.`)
   }
 
-  // General band insights
   const bandFullSongs = rehearsedRows.filter((r) => r.status === 'full').length
-  const bandPartialSongs = rehearsedRows.filter((r) => r.status === 'partial').length
 
   if (bandFullSongs > 0) {
-    general.push(`A banda já ensaiou ${bandFullSongs} música(s) completamente.`)
+    general.push(`A banda ja ensaiou ${bandFullSongs} musica(s) completamente.`)
   }
 
-  // Find songs where all members have full status
   const bandReadySongs = bandSongs.filter((song) => {
     return band.members.every((m) => {
       const status = allStatuses.find(
@@ -118,41 +108,11 @@ export async function GET(
   })
   if (bandReadySongs.length > 0) {
     general.push(
-      `${bandReadySongs.length} música(s) estão dominadas por todos os membros: ${bandReadySongs
+      `${bandReadySongs.length} musica(s) estao dominadas por todos os membros: ${bandReadySongs
         .slice(0, 3)
         .map((s) => s.name)
         .join(', ')}${bandReadySongs.length > 3 ? '...' : ''}.`
     )
-  }
-
-  // Find days where most members are available
-  const dateAvailMap: Record<string, number> = {}
-  for (const a of availRows.filter((a) => a.status === 'available')) {
-    dateAvailMap[a.date] = (dateAvailMap[a.date] || 0) + 1
-  }
-  const bestDates = Object.entries(dateAvailMap)
-    .filter(([, count]) => count === band.members.length)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .slice(0, 3)
-
-  if (bestDates.length > 0) {
-    const formatted = bestDates.map(([date]) => {
-      const [y, m, d] = date.split('-')
-      return `${d}/${m}`
-    })
-    general.push(`Todos disponíveis em: ${formatted.join(', ')}.`)
-  } else {
-    const partialDates = Object.entries(dateAvailMap)
-      .filter(([, count]) => count >= Math.ceil(band.members.length * 0.75))
-      .sort(([a], [b]) => a.localeCompare(b))
-      .slice(0, 3)
-    if (partialDates.length > 0) {
-      const formatted = partialDates.map(([date, count]) => {
-        const [y, m, d] = date.split('-')
-        return `${d}/${m} (${count}/${band.members.length})`
-      })
-      general.push(`Melhores datas para ensaio: ${formatted.join(', ')}.`)
-    }
   }
 
   return NextResponse.json({

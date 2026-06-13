@@ -78,6 +78,7 @@ export const songs = pgTable('songs', {
     .notNull()
     .references(() => bands.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
+  sortOrder: integer('sort_order').notNull().default(0),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   bpm: integer('bpm'),
   tonality: text('tonality'),
@@ -173,7 +174,7 @@ export const bandHistoryEvents = pgTable('band_history_events', {
 
 export const pushSubscriptions = pgTable('push_subscriptions', {
   id: serial('id').primaryKey(),
-  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  userId: text('user_id'),
   endpoint: text('endpoint').notNull().unique(),
   p256dh: text('p256dh').notNull(),
   auth: text('auth').notNull(),
@@ -181,6 +182,31 @@ export const pushSubscriptions = pgTable('push_subscriptions', {
 })
 
 // ─── Band Announcements ───────────────────────────────────────────────────────
+
+export const bandNotifications = pgTable('band_notifications', {
+  id: serial('id').primaryKey(),
+  bandId: text('band_id').notNull().references(() => bands.id, { onDelete: 'cascade' }),
+  createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+  title: text('title').notNull(),
+  body: text('body').notNull(),
+  url: text('url'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const bandNotificationRecipients = pgTable('band_notification_recipients', {
+  id: serial('id').primaryKey(),
+  notificationId: integer('notification_id').notNull().references(() => bandNotifications.id, { onDelete: 'cascade' }),
+  bandMemberId: text('band_member_id').references(() => bandMembers.id, { onDelete: 'set null' }),
+  displayName: text('display_name').notNull(),
+  userId: text('user_id'),
+  endpoint: text('endpoint'),
+  status: text('status').notNull(),
+  error: text('error'),
+  sentAt: timestamp('sent_at'),
+  receivedAt: timestamp('received_at'),
+  openedAt: timestamp('opened_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
 
 export const bandAnnouncements = pgTable('band_announcements', {
   id: serial('id').primaryKey(),

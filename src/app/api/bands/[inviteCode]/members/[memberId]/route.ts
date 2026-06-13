@@ -16,13 +16,15 @@ export async function PATCH(
 ) {
   const session = await getServerSession(authOptions)
   const body = await req.json()
+  const action = typeof body.action === 'string' ? body.action : null
+  const resetClaim = action === 'resetClaim'
   const name = typeof body.displayName === 'string' ? body.displayName.trim() : undefined
   const color = typeof body.color === 'string' ? normalizeMemberColor(body.color) : undefined
   const actorMemberId = typeof body.actorMemberId === 'string' ? body.actorMemberId : null
 
-  if (name !== undefined && !name) return NextResponse.json({ error: 'displayName cannot be empty' }, { status: 400 })
-  if (color !== undefined && !isMemberColor(color)) return NextResponse.json({ error: 'Invalid color' }, { status: 400 })
-  if (name === undefined && color === undefined) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
+  if (!resetClaim && name !== undefined && !name) return NextResponse.json({ error: 'displayName cannot be empty' }, { status: 400 })
+  if (!resetClaim && color !== undefined && !isMemberColor(color)) return NextResponse.json({ error: 'Invalid color' }, { status: 400 })
+  if (!resetClaim && name === undefined && color === undefined) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
 
   const band = await db.query.bands.findFirst({
     where: ilike(bands.inviteCode, params.inviteCode),
@@ -37,6 +39,37 @@ export async function PATCH(
   const member = band.members.find((m) => m.id === params.memberId)
   if (!member) return NextResponse.json({ error: 'Member not found' }, { status: 404 })
   const actor = band.members.find((m) => m.id === actorMemberId) ?? null
+
+  if (name !== undefined && name.toLowerCase() !== member.displayName.toLowerCase()) {
+    const duplicate = band.members.some((m) =>
+      m.id !== params.memberId && m.displayName.toLowerCase() === name.toLowerCase()
+    )
+    if (duplicate) {
+      return NextResponse.json({ error: 'Esse nome ja esta em uso.' }, { status: 409 })
+    }
+  }
+
+  if (resetClaim) {
+    await db
+      .update(bandMembers)
+      .set({ claimedBy: null, claimedAt: null })
+      .where(eq(bandMembers.id, params.memberId))
+
+    if (member.claimedBy) {
+      await recordHistoryEvent({
+        bandId: band.id,
+        actorMemberId: actor?.id ?? null,
+        actorName: actor?.displayName ?? 'Administrador',
+        type: 'member_claim_reset',
+        subjectType: 'member',
+        subjectId: member.id,
+        subjectName: member.displayName,
+        details: {},
+      })
+    }
+
+    return NextResponse.json({ ok: true })
+  }
 
   if (color && isColorBlocked(band.members, color, params.memberId)) {
     return NextResponse.json({ error: 'Essa cor ja esta em uso. Escolha uma cor livre.' }, { status: 409 })

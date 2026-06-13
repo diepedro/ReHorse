@@ -1,13 +1,12 @@
 'use client'
 
 import Calendar from '@/components/Calendar'
-import BandHistoryPanel from '@/components/BandHistoryPanel'
 import { useBand } from '@/contexts/BandContext'
 import { useParams } from 'next/navigation'
 
 export default function RehearsalsPage() {
   const { inviteCode } = useParams() as { inviteCode: string }
-  const { band, currentMember, isAdmin, refetch } = useBand()
+  const { band, currentMember, isAdmin, readOnly, refetch } = useBand()
 
   return (
     <div>
@@ -20,9 +19,9 @@ export default function RehearsalsPage() {
         rehearsalTime={band.rehearsalTime}
         rehearsalNote={band.rehearsalNote}
         isAdmin={isAdmin}
+        readOnly={readOnly}
         onScheduleChange={refetch}
       />
-      <BandHistoryPanel inviteCode={inviteCode} type="rehearsal" title="Historico de ensaios" />
     </div>
   )
 }

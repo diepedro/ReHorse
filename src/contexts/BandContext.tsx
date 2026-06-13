@@ -7,6 +7,7 @@ interface BandContextValue {
   band: Band
   currentMember: BandMember | null
   isAdmin: boolean
+  readOnly: boolean
   refetch: () => void
 }
 

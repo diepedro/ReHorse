@@ -137,12 +137,14 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
   const [songPrimaryRef, setSongPrimaryRef] = useState<Record<number, { previewUrl: string | null; trackName: string; artistName: string; artworkUrl: string; durationMs: number | null }>>({})
   const [playingId, setPlayingId] = useState<number | null>(null)
   const [reorderingSongId, setReorderingSongId] = useState<number | null>(null)
+  const [reorderControlsVisible, setReorderControlsVisible] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const toast = useToast()
 
   const canEdit = (!!currentMember || isAdmin) && !readOnly
   const hasActiveFilters = search.trim() !== '' || filterRehearsed !== 'all' || filterMine !== 'all'
-  const showReorderControls = isAdmin && !readOnly
+  const canToggleReorderControls = isAdmin && !readOnly
+  const showReorderControls = canToggleReorderControls && reorderControlsVisible
   const canReorderSongs = showReorderControls && !hasActiveFilters
   const sortedMembers = [...allMembers].sort((a, b) => a.sortOrder - b.sortOrder)
 
@@ -833,6 +835,17 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
             className="party-button-secondary mt-4 flex-1 sm:flex-none"
           >
             Buscar e adicionar
+          </button>
+        )}
+        {canToggleReorderControls && (
+          <button
+            type="button"
+            onClick={() => setReorderControlsVisible((visible) => !visible)}
+            aria-pressed={reorderControlsVisible}
+            className="party-button-secondary mt-4 flex-1 sm:flex-none"
+            title={reorderControlsVisible && hasActiveFilters ? 'Limpe os filtros para reordenar' : undefined}
+          >
+            {reorderControlsVisible ? 'Ocultar reordenacao' : 'Mostrar reordenacao'}
           </button>
         )}
         <button

@@ -1,4 +1,4 @@
-const APP_VERSION = 'v7-icon-refresh'
+const APP_VERSION = 'v9-slot-picker'
 const SHELL_CACHE = `rehorse-shell-${APP_VERSION}`
 const ASSET_CACHE = `rehorse-assets-${APP_VERSION}`
 const NAV_CACHE = `rehorse-nav-${APP_VERSION}`
@@ -20,6 +20,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(SHELL_CACHE).then((cache) => cache.addAll(APP_SHELL))
   )
+  self.skipWaiting()
 })
 
 self.addEventListener('activate', (event) => {
@@ -71,7 +72,7 @@ self.addEventListener('fetch', (event) => {
 async function networkFirstNavigation(request) {
   const cache = await caches.open(NAV_CACHE)
   try {
-    const response = await fetch(request)
+    const response = await fetch(new Request(request, { cache: 'no-store' }))
     if (response && response.ok) {
       cache.put(request, response.clone())
     }
@@ -90,7 +91,7 @@ async function networkFirstNavigation(request) {
 async function networkFirstApi(request) {
   const cache = await caches.open(API_CACHE)
   try {
-    const response = await fetch(request)
+    const response = await fetch(new Request(request, { cache: 'no-store' }))
     if (response && response.ok) {
       cache.put(request, response.clone())
     }

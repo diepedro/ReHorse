@@ -23,13 +23,27 @@ export async function POST(
     where: and(eq(bandMembers.id, params.memberId), eq(bandMembers.bandId, band.id)),
   })
   if (!member) return NextResponse.json({ error: 'Member not found' }, { status: 404 })
-  if (member.claimedBy && member.claimedBy !== session?.user?.id) {
+
+  const userId = session?.user?.id ?? null
+  if (member.claimedBy && member.claimedBy !== userId && !userId) {
     return NextResponse.json({ error: 'Member slot already claimed' }, { status: 409 })
+  }
+
+  if (userId) {
+    const alreadyClaimed = await db.query.bandMembers.findFirst({
+      where: and(eq(bandMembers.bandId, band.id), eq(bandMembers.claimedBy, userId)),
+    })
+    if (alreadyClaimed && alreadyClaimed.id !== member.id) {
+      await db
+        .update(bandMembers)
+        .set({ claimedBy: null, claimedAt: null })
+        .where(eq(bandMembers.id, alreadyClaimed.id))
+    }
   }
 
   // If authenticated, store their user ID so the band shows in their dashboard.
   // Otherwise fall back to the anonymous identifier.
-  const newClaimedBy = session?.user?.id ?? `anon:${params.memberId}`
+  const newClaimedBy = userId ?? `anon:${params.memberId}`
 
   await db
     .update(bandMembers)

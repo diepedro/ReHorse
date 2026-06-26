@@ -78,12 +78,15 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
     setBand(data)
 
     const storedMemberId = readClientStorage(`band_${inviteCode}`)
-    const memberId = storedMemberId ?? memberIdFromUrl
+    const accountMember = session?.user?.id
+      ? data.members.find((m) => m.claimedBy === session.user.id) ?? null
+      : null
+    const memberId = accountMember?.id ?? storedMemberId ?? memberIdFromUrl
     if (memberId) {
       const found = data.members.find((m) => m.id === memberId) ?? null
       setCurrentMember(found)
-      setMemberQueryFallback(!storedMemberId && !!memberIdFromUrl && !!found)
-      if (found && !storedMemberId) {
+      setMemberQueryFallback(!storedMemberId && !accountMember && !!memberIdFromUrl && !!found)
+      if (found && storedMemberId !== found.id) {
         writeClientStorage(`band_${inviteCode}`, found.id)
         writeClientStorage(`member_name_${inviteCode}`, found.displayName)
       }
@@ -95,7 +98,7 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
     writeClientStorage('last_band', inviteCode)
     writeClientStorage(`band_name_${inviteCode}`, data.name)
     setLoading(false)
-  }, [inviteCode, memberIdFromUrl, router])
+  }, [inviteCode, memberIdFromUrl, router, session?.user?.id])
 
   useEffect(() => { fetchBand() }, [fetchBand])
   useEffect(() => {

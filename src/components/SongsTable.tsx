@@ -143,7 +143,7 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
 
   const canEdit = (!!currentMember || isAdmin) && !readOnly
   const hasActiveFilters = search.trim() !== '' || filterRehearsed !== 'all' || filterMine !== 'all'
-  const canToggleReorderControls = isAdmin && !readOnly
+  const canToggleReorderControls = canEdit && !readOnly
   const showReorderControls = canToggleReorderControls && reorderControlsVisible
   const canReorderSongs = showReorderControls && !hasActiveFilters
   const sortedMembers = [...allMembers].sort((a, b) => a.sortOrder - b.sortOrder)
@@ -273,7 +273,10 @@ export default function SongsTable({ inviteCode, currentMember, allMembers, isAd
       const res = await fetch(`/api/bands/${inviteCode}/songs/reorder`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ songIds: orderedSongs.map((song) => song.id) }),
+        body: JSON.stringify({
+          songIds: orderedSongs.map((song) => song.id),
+          bandMemberId: currentMember?.id,
+        }),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => null)

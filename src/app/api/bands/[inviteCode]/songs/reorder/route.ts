@@ -7,16 +7,16 @@ import { and, eq, ilike } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
 
-// PUT /api/bands/[inviteCode]/songs/reorder - admin only
+// PUT /api/bands/[inviteCode]/songs/reorder - admin or band member
 export async function PUT(
   request: NextRequest,
   { params }: { params: { inviteCode: string } },
 ) {
   const session = await getServerSession(authOptions)
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json().catch(() => null)
   const songIds = body?.songIds
+  const bandMemberId = typeof body?.bandMemberId === 'string' ? body.bandMemberId : null
   if (!Array.isArray(songIds) || songIds.some((id) => !Number.isInteger(id) || id <= 0)) {
     return NextResponse.json({ error: 'songIds must be an array of song ids' }, { status: 400 })
   }
@@ -28,10 +28,18 @@ export async function PUT(
 
   const band = await db.query.bands.findFirst({
     where: ilike(bands.inviteCode, params.inviteCode),
+    with: { members: true },
   })
   if (!band) return NextResponse.json({ error: 'Band not found' }, { status: 404 })
-  if (band.createdBy !== session.user.id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const isAdmin = !!session?.user?.id && band.createdBy === session.user.id
+  const isMember = bandMemberId
+    ? band.members.some((member) => member.id === bandMemberId)
+    : false
+  if (!isAdmin && !isMember) {
+    return NextResponse.json(
+      { error: bandMemberId ? 'Member not in band' : 'Unauthorized' },
+      { status: bandMemberId ? 403 : 401 },
+    )
   }
 
   const existingSongs = await db
